@@ -25,9 +25,9 @@ try:
 except ImportError:
     Int64 = long
 
-from mongoengine.errors import ValidationError
-from mongoengine.python_support import (PY3, bin_type, txt_type,
-                                        str_types, StringIO)
+from errors import ValidationError
+from python_support import (PY3, bin_type, txt_type,
+                            str_types, StringIO)
 from base import (BaseField, ComplexBaseField, ObjectIdField, GeoJsonBaseField,
                   get_document, BaseDocument)
 from queryset import DO_NOTHING, QuerySet
