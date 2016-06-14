@@ -3,6 +3,7 @@ import warnings
 from mongoengine.common import _import_class
 from mongoengine.errors import InvalidDocumentError
 from mongoengine.python_support import PY3
+from mongoengine.signals import _signals
 from mongoengine.queryset import (DO_NOTHING, DoesNotExist,
                                   MultipleObjectsReturned,
                                   QuerySetManager)
@@ -405,6 +406,15 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
             # Create new exception and set to new_class
             exception = type(name, parents, {'__module__': module})
             setattr(new_class, name, exception)
+
+        for attr_name in dir(new_class):
+            attr = getattr(new_class, attr_name)
+
+            if hasattr(attr, '_mongoengine_signals'):
+                for key in attr._mongoengine_signals.keys():
+                    signal = _signals.get(key)
+                    if signal:
+                        signal.connect(attr, sender=new_class)
 
         return new_class
 
