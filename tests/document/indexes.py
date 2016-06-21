@@ -579,8 +579,12 @@ class IndexesTest(unittest.TestCase):
 
         self.assertEqual(BlogPost.objects.hint(TAGS_INDEX_NAME).count(), 10)
 
-        with self.assertRaises(Exception):
-            BlogPost.objects.hint(('tags', 1)).next()
+        # with self.assertRaises(Exception):
+        #     BlogPost.objects.hint(('tags', 1)).next()
+
+        def invalid_index_2():
+            return BlogPost.objects.hint(('tags', 1)).next()
+        self.assertRaises(Exception as invalid_index_2)
 
     def test_unique(self):
         """Ensure that uniqueness constraints are applied to fields.

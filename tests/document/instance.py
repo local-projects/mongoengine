@@ -732,9 +732,14 @@ class InstanceTest(MongoDBTestCase):
         with self.assertRaises(ValidationError) as cm:
             t.save()
 
-        expected_msg = "Draft entries may not have a publication date."
-        self.assertIn(expected_msg, cm.exception.message)
-        self.assertEqual(cm.exception.to_dict(), {'__all__': expected_msg})
+        # expected_msg = "Draft entries may not have a publication date."
+        # self.assertIn(expected_msg, cm.exception.message)
+        # self.assertEqual(cm.exception.to_dict(), {'__all__': expected_msg})
+
+        except ValidationError as e:
+            expect_msg = "Draft entries may not have a publication date."
+            self.assertTrue(expect_msg in e.message)
+            self.assertEqual(e.to_dict(), {'__all__': expect_msg})
 
         t = TestDocument(status="published")
         t.save(clean=False)
@@ -772,9 +777,14 @@ class InstanceTest(MongoDBTestCase):
         with self.assertRaises(ValidationError) as cm:
             t.save()
 
-        expected_msg = "Value of z != x + y"
-        self.assertIn(expected_msg, cm.exception.message)
-        self.assertEqual(cm.exception.to_dict(), {'doc': {'__all__': expected_msg}})
+        # expected_msg = "Value of z != x + y"
+        # self.assertIn(expected_msg, cm.exception.message)
+        # self.assertEqual(cm.exception.to_dict(), {'doc': {'__all__': expected_msg}})
+
+        except ValidationError as e:
+            expect_msg = "Value of z != x + y"
+            self.assertTrue(expect_msg in e.message)
+            self.assertEqual(e.to_dict(), {'doc': {'__all__': expect_msg}})
 
         t = TestDocument(doc=TestEmbeddedDocument(x=10, y=25)).save()
         self.assertEqual(t.doc.z, 35)

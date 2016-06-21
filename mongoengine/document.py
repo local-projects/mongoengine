@@ -407,9 +407,12 @@ class Document(six.with_metaclass(TopLevelDocumentMetaclass, BaseDocument)):
                 kwargs['_refs'] = _refs
                 self.cascade_save(**kwargs)
 
+        # except pymongo.errors.DuplicateKeyError as err:
+        #     message = u'Tried to save duplicate unique keys (%s)'
+        #     raise NotUniqueError(message % six.text_type(err))
         except pymongo.errors.DuplicateKeyError as err:
             message = u'Tried to save duplicate unique keys (%s)'
-            raise NotUniqueError(message % six.text_type(err))
+            raise NotUniqueError(message % unicode(err))
         except pymongo.errors.OperationFailure as err:
             message = 'Could not save document (%s)'
             if re.match('^E1100[01] duplicate key', six.text_type(err)):

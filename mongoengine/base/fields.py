@@ -471,7 +471,8 @@ class ObjectIdField(BaseField):
     def to_mongo(self, value):
         if not isinstance(value, ObjectId):
             try:
-                return ObjectId(six.text_type(value))
+                # return ObjectId(six.text_type(value))
+                return ObjectId(unicode(value))
             except Exception as e:
                 # e.message attribute has been deprecated since Python 2.6
                 self.error(six.text_type(e))

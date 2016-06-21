@@ -58,7 +58,8 @@ class ValidatorErrorTest(unittest.TestCase):
         try:
             User().validate()
         except ValidationError as e:
-            self.assertIn("User:None", e.message)
+            # self.assertIn("User:None", e.message)
+            self.assertTrue("User:None" in e.message)
             self.assertEqual(e.to_dict(), {
                 'username': 'Field is required',
                 'name': 'Field is required'})
@@ -68,7 +69,8 @@ class ValidatorErrorTest(unittest.TestCase):
         try:
             user.save()
         except ValidationError as e:
-            self.assertIn("User:RossC0", e.message)
+            # self.assertIn("User:RossC0", e.message)
+            self.assertTrue("User:RossC0" in e.message)
             self.assertEqual(e.to_dict(), {
                 'name': 'Field is required'})
 
@@ -116,7 +118,8 @@ class ValidatorErrorTest(unittest.TestCase):
         try:
             Doc(id="bad").validate()
         except ValidationError as e:
-            self.assertIn("SubDoc:None", e.message)
+            # self.assertIn("SubDoc:None", e.message)
+            self.assertTrue("SubDoc:None" in e.message)
             self.assertEqual(e.to_dict(), {
                 "e": {'val': 'OK could not be converted to int'}})
 
@@ -134,7 +137,8 @@ class ValidatorErrorTest(unittest.TestCase):
         try:
             doc.save()
         except ValidationError as e:
-            self.assertIn("Doc:test", e.message)
+            # self.assertIn("Doc:test", e.message)
+            self.assertTrue("Doc:test" in e.message)
             self.assertEqual(e.to_dict(), {
                 "e": {'val': 'OK could not be converted to int'}})
 

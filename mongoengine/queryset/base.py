@@ -169,10 +169,27 @@ class BaseQuerySet(object):
 
         # Handle a slice
         if isinstance(key, slice):
-            queryset._cursor_obj = queryset._cursor[key]
-            queryset._skip, queryset._limit = key.start, key.stop
-            if key.start and key.stop:
-                queryset._limit = key.stop - key.start
+            # queryset._cursor_obj = queryset._cursor[key]
+            # queryset._skip, queryset._limit = key.start, key.stop
+            # if key.start and key.stop:
+            #     queryset._limit = key.stop - key.start
+
+            try:
+                queryset._cursor_obj = queryset._cursor[key]
+                queryset._skip, queryset._limit = key.start, key.stop
+                if key.start and key.stop:
+                    queryset._limit = key.stop - key.start
+            except IndexError as err:
+                # PyMongo raises an error if key.start == key.stop, catch it,
+                # bin it, kill it.
+                start = key.start or 0
+                if start >= 0 and key.stop >= 0 and key.step is None:
+                    if start == key.stop:
+                        queryset.limit(0)
+                        queryset._skip = key.start
+                        queryset._limit = key.stop - start
+                        return queryset
+                raise err
 
             # Allow further QuerySet modifications to be performed
             return queryset
@@ -354,16 +371,20 @@ class BaseQuerySet(object):
                 insert_func = collection.insert_one
 
         try:
-            inserted_result = insert_func(raw)
-            ids = [inserted_result.inserted_id] if return_one else inserted_result.inserted_ids
+        #     inserted_result = insert_func(raw)
+        #     ids = [inserted_result.inserted_id] if return_one else inserted_result.inserted_ids
+        # except pymongo.errors.DuplicateKeyError as err:
+        #     message = 'Could not save document (%s)'
+        #     raise NotUniqueError(message % six.text_type(err))
+        # except pymongo.errors.BulkWriteError as err:
+        #     # inserting documents that already have an _id field will
+        #     # give huge performance debt or raise
+        #     message = u'Document must not have _id value before bulk write (%s)'
+        #     raise NotUniqueError(message % six.text_type(err))
+            ids = self._collection.insert(raw, **write_concern)
         except pymongo.errors.DuplicateKeyError as err:
             message = 'Could not save document (%s)'
-            raise NotUniqueError(message % six.text_type(err))
-        except pymongo.errors.BulkWriteError as err:
-            # inserting documents that already have an _id field will
-            # give huge performance debt or raise
-            message = u'Document must not have _id value before bulk write (%s)'
-            raise NotUniqueError(message % six.text_type(err))
+            raise NotUniqueError(message % unicode(err))
         except pymongo.errors.OperationFailure as err:
             message = 'Could not save document (%s)'
             if re.match('^E1100[01] duplicate key', six.text_type(err)):
@@ -532,12 +553,18 @@ class BaseQuerySet(object):
                 result = update_func(query, update, upsert=upsert)
             if full_result:
                 return result
-            elif result.raw_result:
-                return result.raw_result['n']
+        #     elif result.raw_result:
+        #         return result.raw_result['n']
+        # except pymongo.errors.DuplicateKeyError as err:
+        #     raise NotUniqueError(u'Update failed (%s)' % six.text_type(err))
+        # except pymongo.errors.OperationFailure as err:
+        #     if six.text_type(err) == u'multi not coded yet':
+            elif result:
+                return result['n']
         except pymongo.errors.DuplicateKeyError as err:
-            raise NotUniqueError(u'Update failed (%s)' % six.text_type(err))
+            raise NotUniqueError(u'Update failed (%s)' % unicode(err))
         except pymongo.errors.OperationFailure as err:
-            if six.text_type(err) == u'multi not coded yet':
+            if unicode(err) == u'multi not coded yet':
                 message = u'update() method requires MongoDB 1.1.3+'
                 raise OperationError(message)
             raise OperationError(u'Update failed (%s)' % six.text_type(err))
@@ -652,9 +679,12 @@ class BaseQuerySet(object):
                     query, update, upsert=upsert, sort=sort, remove=remove, new=new,
                     full_response=full_response, **self._cursor_args)
         except pymongo.errors.DuplicateKeyError as err:
-            raise NotUniqueError(u'Update failed (%s)' % err)
+        #     raise NotUniqueError(u'Update failed (%s)' % err)
+        # except pymongo.errors.OperationFailure as err:
+        #     raise OperationError(u'Update failed (%s)' % err)
+            raise NotUniqueError(u"Update failed (%s)" % err)
         except pymongo.errors.OperationFailure as err:
-            raise OperationError(u'Update failed (%s)' % err)
+            raise OperationError(u"Update failed (%s)" % err)
 
         if full_response:
             if result['value'] is not None:
@@ -1766,11 +1796,14 @@ class BaseQuerySet(object):
         for field in fields:
             field_parts = field.split('.')
             try:
-                field = '.'.join(
-                    f if isinstance(f, six.string_types) else f.db_field
-                    for f in self._document._lookup_field(field_parts)
-                )
-                db_field_paths.append(field)
+                # field = '.'.join(
+                #     f if isinstance(f, six.string_types) else f.db_field
+                #     for f in self._document._lookup_field(field_parts)
+                # )
+                # db_field_paths.append(field)
+                field = ".".join(f.db_field for f in
+                                 document._lookup_field(field.split('.')))
+                ret.append(field)
             except LookUpError as err:
                 found = False
 

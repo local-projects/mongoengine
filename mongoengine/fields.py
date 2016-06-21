@@ -167,6 +167,16 @@ class URLField(StringField):
             self.error(u'Invalid URL: {}'.format(value))
             return
 
+        if self.verify_exists:
+            warnings.warn(
+                "The URLField verify_exists argument has intractable security "
+                "and performance issues. Accordingly, it has been deprecated.",
+                DeprecationWarning)
+            try:
+                request = urllib2.Request(value)
+                urllib2.urlopen(request)
+            except Exception as e:
+                self.error('This URL appears to be a broken link: %s' % e)
 
 class EmailField(StringField):
     """A field that validates input as an email address.
@@ -442,7 +452,8 @@ class DecimalField(BaseField):
                 value = six.text_type(value)
             try:
                 value = decimal.Decimal(value)
-            except (TypeError, ValueError, decimal.InvalidOperation) as exc:
+            # except (TypeError, ValueError, decimal.InvalidOperation) as exc:
+            except Exception as exc:
                 self.error('Could not convert value to decimal: %s' % exc)
 
         if self.min_value is not None and value < self.min_value:
@@ -2086,7 +2097,8 @@ class UUIDField(BaseField):
                 value = str(value)
             try:
                 uuid.UUID(value)
-            except (ValueError, TypeError, AttributeError) as exc:
+            # except (ValueError, TypeError, AttributeError) as exc:
+            except Exception as exc:
                 self.error('Could not convert to UUID: %s' % exc)
 
 
