@@ -745,7 +745,7 @@ class InstanceTest(unittest.TestCase):
 
         try:
             t.save()
-        except ValidationError, e:
+        except ValidationError as e:
             expect_msg = "Draft entries may not have a publication date."
             self.assertTrue(expect_msg in e.message)
             self.assertEqual(e.to_dict(), {'__all__': expect_msg})
@@ -784,7 +784,7 @@ class InstanceTest(unittest.TestCase):
         t = TestDocument(doc=TestEmbeddedDocument(x=10, y=25, z=15))
         try:
             t.save()
-        except ValidationError, e:
+        except ValidationError as e:
             expect_msg = "Value of z != x + y"
             self.assertTrue(expect_msg in e.message)
             self.assertEqual(e.to_dict(), {'doc': {'__all__': expect_msg}})

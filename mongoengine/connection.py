@@ -1,5 +1,6 @@
 from pymongo import MongoClient, ReadPreference, uri_parser
 from mongoengine.python_support import IS_PYMONGO_3
+from past.builtins import basestring    # pip install future
 
 __all__ = ['ConnectionError', 'connect', 'register_connection',
            'DEFAULT_CONNECTION_NAME']
@@ -141,7 +142,7 @@ def get_connection(alias=DEFAULT_CONNECTION_NAME, reconnect=False):
             connection = None
             # check for shared connections
             connection_settings_iterator = (
-                (db_alias, settings.copy()) for db_alias, settings in _connection_settings.iteritems())
+                (db_alias, settings.copy()) for db_alias, settings in _connection_settings.items())
             for db_alias, connection_settings in connection_settings_iterator:
                 connection_settings.pop('name', None)
                 connection_settings.pop('username', None)
@@ -152,7 +153,7 @@ def get_connection(alias=DEFAULT_CONNECTION_NAME, reconnect=False):
                     break
 
             _connections[alias] = connection if connection else connection_class(**conn_settings)
-        except Exception, e:
+        except Exception as e:
             raise ConnectionError("Cannot connect to database %s :\n%s" % (alias, e))
     return _connections[alias]
 

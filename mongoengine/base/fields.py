@@ -11,6 +11,8 @@ from mongoengine.base.common import ALLOW_INHERITANCE
 from mongoengine.base.datastructures import (
     BaseDict, BaseList, EmbeddedDocumentList
 )
+from past.builtins import basestring    # pip install future
+
 
 __all__ = ("BaseField", "ComplexBaseField",
            "ObjectIdField", "GeoJsonBaseField")
@@ -405,9 +407,9 @@ class ComplexBaseField(BaseField):
             for k, v in sequence:
                 try:
                     self.field._validate(v)
-                except ValidationError, error:
+                except ValidationError as error:
                     errors[k] = error.errors or error
-                except (ValueError, AssertionError), error:
+                except (ValueError, AssertionError) as error:
                     errors[k] = error
 
             if errors:
@@ -448,7 +450,7 @@ class ObjectIdField(BaseField):
         if not isinstance(value, ObjectId):
             try:
                 return ObjectId(unicode(value))
-            except Exception, e:
+            except Exception as e:
                 # e.message attribute has been deprecated since Python 2.6
                 self.error(unicode(e))
         return value

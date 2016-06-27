@@ -3,10 +3,18 @@ import decimal
 import itertools
 import re
 import time
-import urllib2
+import sys
 import uuid
 import warnings
 from operator import itemgetter
+from past.builtins import basestring    # pip install future
+
+try:
+    # For Python 3.0 and later
+    from urllib.request import urlopen, Request
+except ImportError:
+    # Fall back to Python 2's urllib2
+    from urllib2 import urlopen, Request
 
 import six
 
@@ -25,14 +33,14 @@ try:
 except ImportError:
     Int64 = long
 
-from mongoengine.errors import ValidationError
-from mongoengine.python_support import (PY3, bin_type, txt_type,
-                                        str_types, StringIO)
-from base import (BaseField, ComplexBaseField, ObjectIdField, GeoJsonBaseField,
-                  get_document, BaseDocument)
-from queryset import DO_NOTHING, QuerySet
-from document import Document, EmbeddedDocument
-from connection import get_db, DEFAULT_CONNECTION_NAME
+from .errors import ValidationError
+from .python_support import (PY3, bin_type, txt_type,
+                             str_types, StringIO)
+from .base import (BaseField, ComplexBaseField, ObjectIdField, GeoJsonBaseField,
+                   get_document, BaseDocument)
+from .queryset import DO_NOTHING, QuerySet
+from .document import Document, EmbeddedDocument
+from .connection import get_db, DEFAULT_CONNECTION_NAME
 
 try:
     from PIL import Image, ImageOps
@@ -138,27 +146,12 @@ class URLField(StringField):
         super(URLField, self).__init__(**kwargs)
 
     def validate(self, value):
-        # Check first if the scheme is valid
-        scheme = value.split('://')[0].lower()
-        if scheme not in self.schemes:
-            self.error('Invalid scheme {} in URL: {}'.format(scheme, value))
-            return
+        import requests
+        try:
+            requests.get(value)
+        except Exception as e:
+            self.error('This URL appears to be a broken link: %s' % e)
 
-        # Then check full URL
-        if not self.url_regex.match(value):
-            self.error('Invalid URL: {}'.format(value))
-            return
-
-        if self.verify_exists:
-            warnings.warn(
-                "The URLField verify_exists argument has intractable security "
-                "and performance issues. Accordingly, it has been deprecated.",
-                DeprecationWarning)
-            try:
-                request = urllib2.Request(value)
-                urllib2.urlopen(request)
-            except Exception, e:
-                self.error('This URL appears to be a broken link: %s' % e)
 
 
 class EmailField(StringField):
@@ -351,7 +344,7 @@ class DecimalField(BaseField):
                 value = unicode(value)
             try:
                 value = decimal.Decimal(value)
-            except Exception, exc:
+            except Exception as exc:
                 self.error('Could not convert value to decimal: %s' % exc)
 
         if self.min_value is not None and value < self.min_value:
@@ -1548,7 +1541,7 @@ class ImageGridFsProxy(GridFSProxy):
         try:
             img = Image.open(file_obj)
             img_format = img.format
-        except Exception, e:
+        except Exception as e:
             raise ValidationError('Invalid image: %s' % e)
 
         # Progressive JPEG
@@ -1876,7 +1869,7 @@ class UUIDField(BaseField):
                 value = str(value)
             try:
                 uuid.UUID(value)
-            except Exception, exc:
+            except Exception as exc:
                 self.error('Could not convert to UUID: %s' % exc)
 
 

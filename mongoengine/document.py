@@ -23,6 +23,9 @@ from mongoengine.queryset import (OperationError, NotUniqueError,
                                   QuerySet, transform)
 from mongoengine.connection import get_db, DEFAULT_CONNECTION_NAME
 from mongoengine.context_managers import switch_db, switch_collection
+# Python 3 support
+from past.builtins import basestring    # pip install future
+from builtins import str
 
 __all__ = ('Document', 'EmbeddedDocument', 'DynamicDocument',
            'DynamicEmbeddedDocument', 'OperationError',
@@ -390,17 +393,17 @@ class Document(BaseDocument):
                     kwargs.update(cascade_kwargs)
                 kwargs['_refs'] = _refs
                 self.cascade_save(**kwargs)
-        except pymongo.errors.DuplicateKeyError, err:
+        except pymongo.errors.DuplicateKeyError as err:
             message = u'Tried to save duplicate unique keys (%s)'
-            raise NotUniqueError(message % unicode(err))
-        except pymongo.errors.OperationFailure, err:
+            raise NotUniqueError(message % str(err, 'utf-8'))
+        except pymongo.errors.OperationFailure as err:
             message = 'Could not save document (%s)'
-            if re.match('^E1100[01] duplicate key', unicode(err)):
+            if re.match('^E1100[01] duplicate key', str(err, 'utf-8')):
                 # E11000 - duplicate key error index
                 # E11001 - duplicate key on update
                 message = u'Tried to save duplicate unique keys (%s)'
-                raise NotUniqueError(message % unicode(err))
-            raise OperationError(message % unicode(err))
+                raise NotUniqueError(message % str(err, 'utf-8'))
+            raise OperationError(message % str(err, 'utf-8'))
         id_field = self._meta['id_field']
         if created or id_field not in self._meta.get('shard_key', []):
             self[id_field] = self._fields[id_field].to_python(object_id)
@@ -510,7 +513,7 @@ class Document(BaseDocument):
         try:
             self._qs.filter(
                 **self._object_key).delete(write_concern=write_concern, _from_doc_delete=True)
-        except pymongo.errors.OperationFailure, err:
+        except pymongo.errors.OperationFailure as err:
             message = u'Could not delete document (%s)' % err.message
             raise OperationError(message)
         signals.post_delete.send(self.__class__, document=self, **signal_kwargs)
