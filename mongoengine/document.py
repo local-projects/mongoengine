@@ -395,15 +395,15 @@ class Document(BaseDocument):
                 self.cascade_save(**kwargs)
         except pymongo.errors.DuplicateKeyError as err:
             message = u'Tried to save duplicate unique keys (%s)'
-            raise NotUniqueError(message % str(err, 'utf-8'))
+            raise NotUniqueError(message % str(err))
         except pymongo.errors.OperationFailure as err:
             message = 'Could not save document (%s)'
-            if re.match('^E1100[01] duplicate key', str(err, 'utf-8')):
+            if re.match('^E1100[01] duplicate key', str(err)):
                 # E11000 - duplicate key error index
                 # E11001 - duplicate key on update
                 message = u'Tried to save duplicate unique keys (%s)'
-                raise NotUniqueError(message % str(err, 'utf-8'))
-            raise OperationError(message % str(err, 'utf-8'))
+                raise NotUniqueError(message % str(err))
+            raise OperationError(message % str(err))
         id_field = self._meta['id_field']
         if created or id_field not in self._meta.get('shard_key', []):
             self[id_field] = self._fields[id_field].to_python(object_id)

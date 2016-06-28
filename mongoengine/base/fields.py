@@ -188,11 +188,11 @@ class BaseField(object):
         if isinstance(value, (Document, EmbeddedDocument)):
             if not any(isinstance(value, c) for c in choice_list):
                 self.error(
-                    'Value must be instance of %s' % str(choice_list, 'utf-8')
+                    'Value must be instance of %s' % str(choice_list)
                 )
         # Choices which are types other than Documents
         elif value not in choice_list:
-            self.error('Value must be one of %s' % str(choice_list, 'utf-8'))
+            self.error('Value must be one of %s' % str(choice_list))
 
 
     def _validate(self, value, **kwargs):
@@ -451,15 +451,18 @@ class ObjectIdField(BaseField):
                 return ObjectId(str(value, 'utf-8').decode())
             except Exception as e:
                 # e.message attribute has been deprecated since Python 2.6
-                self.error(str(e, 'utf-8').decode())
+                self.error(str(e))
         return value
 
     def prepare_query_value(self, op, value):
         return self.to_mongo(value)
 
     def validate(self, value):
+        if isinstance(value, ObjectId):
+            return True
+
         try:
-            ObjectId(str(value, 'utf-8'))
+            ObjectId(str(value, 'utf-8').decode())
         except Exception:
             self.error('Invalid Object ID')
 
