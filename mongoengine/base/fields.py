@@ -448,7 +448,7 @@ class ObjectIdField(BaseField):
     def to_mongo(self, value, **kwargs):
         if not isinstance(value, ObjectId):
             try:
-                return ObjectId(str(value, 'utf-8').decode())
+                return ObjectId(value)
             except Exception as e:
                 # e.message attribute has been deprecated since Python 2.6
                 self.error(str(e))
@@ -462,7 +462,7 @@ class ObjectIdField(BaseField):
             return True
 
         try:
-            ObjectId(str(value, 'utf-8').decode())
+            ObjectId(str(value))
         except Exception:
             self.error('Invalid Object ID')
 
