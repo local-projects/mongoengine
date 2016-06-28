@@ -11,6 +11,7 @@ from mongoengine.base.common import ALLOW_INHERITANCE
 from mongoengine.base.datastructures import (
     BaseDict, BaseList, EmbeddedDocumentList
 )
+from past.builtins import basestring    # pip install future
 
 __all__ = ("BaseField", "ComplexBaseField",
            "ObjectIdField", "GeoJsonBaseField")
@@ -187,11 +188,11 @@ class BaseField(object):
         if isinstance(value, (Document, EmbeddedDocument)):
             if not any(isinstance(value, c) for c in choice_list):
                 self.error(
-                    'Value must be instance of %s' % unicode(choice_list)
+                    'Value must be instance of %s' % str(choice_list, 'utf-8')
                 )
         # Choices which are types other than Documents
         elif value not in choice_list:
-            self.error('Value must be one of %s' % unicode(choice_list))
+            self.error('Value must be one of %s' % str(choice_list, 'utf-8'))
 
 
     def _validate(self, value, **kwargs):
@@ -405,9 +406,9 @@ class ComplexBaseField(BaseField):
             for k, v in sequence:
                 try:
                     self.field._validate(v)
-                except ValidationError, error:
+                except ValidationError as error:
                     errors[k] = error.errors or error
-                except (ValueError, AssertionError), error:
+                except (ValueError, AssertionError) as error:
                     errors[k] = error
 
             if errors:
@@ -447,10 +448,10 @@ class ObjectIdField(BaseField):
     def to_mongo(self, value, **kwargs):
         if not isinstance(value, ObjectId):
             try:
-                return ObjectId(unicode(value))
-            except Exception, e:
+                return ObjectId(str(value, 'utf-8').decode())
+            except Exception as e:
                 # e.message attribute has been deprecated since Python 2.6
-                self.error(unicode(e))
+                self.error(str(e, 'utf-8').decode())
         return value
 
     def prepare_query_value(self, op, value):
@@ -458,7 +459,7 @@ class ObjectIdField(BaseField):
 
     def validate(self, value):
         try:
-            ObjectId(unicode(value))
+            ObjectId(str(value, 'utf-8'))
         except Exception:
             self.error('Invalid Object ID')
 

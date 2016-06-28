@@ -10,6 +10,7 @@ from fields import (ReferenceField, ListField, DictField, MapField)
 from connection import get_db
 from queryset import QuerySet
 from document import Document, EmbeddedDocument
+from past.builtins import basestring    # pip install future
 
 
 class DeReference(object):

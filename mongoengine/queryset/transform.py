@@ -8,6 +8,8 @@ from mongoengine.connection import get_connection
 from mongoengine.common import _import_class
 from mongoengine.errors import InvalidQueryError
 from mongoengine.python_support import IS_PYMONGO_3
+from past.builtins import basestring    # pip install future
+
 
 __all__ = ('query', 'update')
 
@@ -57,7 +59,7 @@ def query(_doc_cls=None, **kwargs):
             # Switch field names to proper names [set in Field(name='foo')]
             try:
                 fields = _doc_cls._lookup_field(parts)
-            except Exception, e:
+            except Exception as e:
                 raise InvalidQueryError(e)
             parts = []
 
@@ -216,7 +218,7 @@ def update(_doc_cls=None, **update):
             # Switch field names to proper names [set in Field(name='foo')]
             try:
                 fields = _doc_cls._lookup_field(parts)
-            except Exception, e:
+            except Exception as e:
                 raise InvalidQueryError(e)
             parts = []
 
