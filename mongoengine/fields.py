@@ -7,7 +7,6 @@ import sys
 import uuid
 import warnings
 from operator import itemgetter
-from past.builtins import basestring    # pip install future
 
 try:
     # For Python 3.0 and later
