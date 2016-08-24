@@ -205,6 +205,12 @@ class IntField(BaseField):
         if value is None:
             return value
 
+        # A search for a non-decimal value should be ignored
+        try:
+            int(value)
+        except ValueError as exc:
+            return value
+
         return super(IntField, self).prepare_query_value(op, int(value))
 
 
@@ -240,6 +246,12 @@ class LongField(BaseField):
 
     def prepare_query_value(self, op, value):
         if value is None:
+            return value
+
+        # A search for a non-decimal value should be ignored
+        try:
+            long(value)
+        except ValueError as exc:
             return value
 
         return super(LongField, self).prepare_query_value(op, long(value))
@@ -278,6 +290,12 @@ class FloatField(BaseField):
 
     def prepare_query_value(self, op, value):
         if value is None:
+            return value
+
+        # A search for a non-decimal value should be ignored
+        try:
+            float(value)
+        except ValueError as exc:
             return value
 
         return super(FloatField, self).prepare_query_value(op, float(value))
