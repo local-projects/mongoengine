@@ -593,6 +593,8 @@ class EmbeddedDocumentField(BaseField):
                 doc_cls = get_document(value['_cls'])
                 value = doc_cls._from_son(value)
                 value = self.document_type._from_son(value)
+            else:
+                value = self.document_type._from_son(value)
         super(EmbeddedDocumentField, self).prepare_query_value(op, value)
         return self.to_mongo(value)
 
@@ -1012,10 +1014,6 @@ class ReferenceField(BaseField):
     def prepare_query_value(self, op, value):
         if value is None:
             return None
-
-        # We can only query/search for valid objectId for referenceFields
-        if not isinstance(value, ObjectId):
-            return value
 
         super(ReferenceField, self).prepare_query_value(op, value)
         return self.to_mongo(value)
