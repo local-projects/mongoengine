@@ -1015,8 +1015,13 @@ class ReferenceField(BaseField):
         if value is None:
             return None
 
-        super(ReferenceField, self).prepare_query_value(op, value)
-        return self.to_mongo(value)
+        # We can only query/search for valid objectId for referenceFields
+        if isinstance(value, (self.document_type, DBRef)):
+            super(ReferenceField, self).prepare_query_value(op, value)
+            return self.to_mongo(value)
+        else:
+            return value
+
 
     def validate(self, value):
 
