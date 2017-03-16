@@ -418,13 +418,17 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
             setattr(new_class, name, exception)
 
         for attr_name in dir(new_class):
-            attr = getattr(new_class, attr_name)
+            try:
+                if attr_name != 'object':
+                    attr = getattr(new_class, attr_name)
 
-            if hasattr(attr, '_mongoengine_signals'):
-                for key in attr._mongoengine_signals.keys():
-                    signal = _signals.get(key)
-                    if signal:
-                        signal.connect(attr, sender=new_class)
+                    if hasattr(attr, '_mongoengine_signals'):
+                        for key in attr._mongoengine_signals.keys():
+                            signal = _signals.get(key)
+                            if signal:
+                                signal.connect(attr, sender=new_class)
+            except ConnectionError:
+                pass
 
         return new_class
 
