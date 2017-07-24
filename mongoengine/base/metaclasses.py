@@ -64,7 +64,7 @@ class DocumentMetaclass(type):
             # Standard object mixin - merge in any Fields
             if not hasattr(base, '_meta'):
                 base_fields = {}
-                for attr_name, attr_value in base.__dict__.iteritems():
+                for attr_name, attr_value in six.iteritems(base.__dict__):
                     if not isinstance(attr_value, BaseField):
                         continue
                     attr_value.name = attr_name
@@ -76,7 +76,7 @@ class DocumentMetaclass(type):
 
         # Discover any document fields
         field_names = {}
-        for attr_name, attr_value in attrs.iteritems():
+        for attr_name, attr_value in six.iteritems(attrs):
             if not isinstance(attr_value, BaseField):
                 continue
             attr_value.name = attr_name
@@ -105,7 +105,7 @@ class DocumentMetaclass(type):
 
         attrs['_fields_ordered'] = tuple(i[1] for i in sorted(
                                          (v.creation_counter, v.name)
-                                         for v in doc_fields.itervalues()))
+                                         for v in six.itervalues(doc_fields)))
 
         #
         # Set document hierarchy
@@ -174,7 +174,7 @@ class DocumentMetaclass(type):
                         f.__dict__.update({'im_self': getattr(f, '__self__')})
 
         # Handle delete rules
-        for field in new_class._fields.itervalues():
+        for field in six.itervalues(new_class._fields):
             f = field
             if f.owner_document is None:
                 f.owner_document = new_class
@@ -455,7 +455,7 @@ class MetaDict(dict):
     _merge_options = ('indexes',)
 
     def merge(self, new_options):
-        for k, v in new_options.iteritems():
+        for k, v in six.iteritems(new_options):
             if k in self._merge_options:
                 self[k] = self.get(k, []) + v
             else:
