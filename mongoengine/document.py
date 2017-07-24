@@ -1,28 +1,23 @@
-import warnings
-import pymongo
 import re
+import warnings
 
-from pymongo.read_preferences import ReadPreference
 from bson.dbref import DBRef
+import pymongo
+from pymongo.read_preferences import ReadPreference
+import six
+
 from mongoengine import signals
+from mongoengine.base import (BaseDict, BaseDocument, BaseList,
+                              DocumentMetaclass, EmbeddedDocumentList,
+                              TopLevelDocumentMetaclass, get_document)
 from mongoengine.common import _import_class
-from mongoengine.base import (
-    DocumentMetaclass,
-    TopLevelDocumentMetaclass,
-    BaseDocument,
-    BaseDict,
-    BaseList,
-    EmbeddedDocumentList,
-    ALLOW_INHERITANCE,
-    get_document
-)
-from mongoengine.errors import (InvalidQueryError, InvalidDocumentError,
+from mongoengine.connection import DEFAULT_CONNECTION_NAME, get_db
+from mongoengine.context_managers import switch_collection, switch_db
+from mongoengine.errors import (InvalidDocumentError, InvalidQueryError,
                                 SaveConditionError)
 from mongoengine.python_support import IS_PYMONGO_3
-from mongoengine.queryset import (OperationError, NotUniqueError,
+from mongoengine.queryset import (NotUniqueError, OperationError,
                                   QuerySet, transform)
-from mongoengine.connection import get_db, DEFAULT_CONNECTION_NAME
-from mongoengine.context_managers import switch_db, switch_collection
 
 __all__ = ('Document', 'EmbeddedDocument', 'DynamicDocument',
            'DynamicEmbeddedDocument', 'OperationError',
@@ -30,12 +25,10 @@ __all__ = ('Document', 'EmbeddedDocument', 'DynamicDocument',
 
 
 def includes_cls(fields):
-    """ Helper function used for ensuring and comparing indexes
-    """
-
+    """Helper function used for ensuring and comparing indexes."""
     first_field = None
     if len(fields):
-        if isinstance(fields[0], basestring):
+        if isinstance(fields[0], six.string_types):
             first_field = fields[0]
         elif isinstance(fields[0], (list, tuple)) and len(fields[0]):
             first_field = fields[0][0]
@@ -56,9 +49,8 @@ class EmbeddedDocument(BaseDocument):
     to create a specialised version of the embedded document that will be
     stored in the same collection. To facilitate this behaviour a `_cls`
     field is added to documents (hidden though the MongoEngine interface).
-    To disable this behaviour and remove the dependence on the presence of
-    `_cls` set :attr:`allow_inheritance` to ``False`` in the :attr:`meta`
-    dictionary.
+    To enable this behaviour set :attr:`allow_inheritance` to ``True`` in the
+    :attr:`meta` dictionary.
     """
 
     __slots__ = ('_instance', )
@@ -67,6 +59,12 @@ class EmbeddedDocument(BaseDocument):
     # my_metaclass is defined so that metaclass can be queried in Python 2 & 3
     my_metaclass = DocumentMetaclass
     __metaclass__ = DocumentMetaclass
+
+    # A generic embedded document doesn't have any immutable properties
+    # that describe it uniquely, hence it shouldn't be hashable. You can
+    # define your own __hash__ method on a subclass if you need your
+    # embedded documents to be hashable.
+    __hash__ = None
 
     def __init__(self, *args, **kwargs):
         super(EmbeddedDocument, self).__init__(*args, **kwargs)
@@ -80,6 +78,15 @@ class EmbeddedDocument(BaseDocument):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def to_mongo(self, *args, **kwargs):
+        data = super(EmbeddedDocument, self).to_mongo(*args, **kwargs)
+
+        # remove _id from the SON if it's in it and it's None
+        if '_id' in data and data['_id'] is None:
+            del data['_id']
+
+        return data
 
     def save(self, *args, **kwargs):
         self._instance.save(*args, **kwargs)
@@ -105,9 +112,8 @@ class Document(BaseDocument):
     create a specialised version of the document that will be stored in the
     same collection. To facilitate this behaviour a `_cls`
     field is added to documents (hidden though the MongoEngine interface).
-    To disable this behaviour and remove the dependence on the presence of
-    `_cls` set :attr:`allow_inheritance` to ``False`` in the :attr:`meta`
-    dictionary.
+    To enable this behaviourset :attr:`allow_inheritance` to ``True`` in the
+    :attr:`meta` dictionary.
 
     A :class:`~mongoengine.Document` may use a **Capped Collection** by
     specifying :attr:`max_documents` and :attr:`max_size` in the :attr:`meta`
@@ -148,69 +154,105 @@ class Document(BaseDocument):
 
     __slots__ = ('__objects',)
 
-    def pk():
-        """Primary key alias
+    @property
+    def pk(self):
+        """Get the primary key."""
+        if 'id_field' not in self._meta:
+            return None
+        return getattr(self, self._meta['id_field'])
+
+    @pk.setter
+    def pk(self, value):
+        """Set the primary key."""
+        return setattr(self, self._meta['id_field'], value)
+
+    def __hash__(self):
+        """Return the hash based on the PK of this document. If it's new
+        and doesn't have a PK yet, return the default object hash instead.
         """
-
-        def fget(self):
-            if 'id_field' not in self._meta:
-                return None
-            return getattr(self, self._meta['id_field'])
-
-        def fset(self, value):
-            return setattr(self, self._meta['id_field'], value)
-
-        return property(fget, fset)
-
-    pk = pk()
+        if self.pk is None:
+            return super(BaseDocument, self).__hash__()
+        else:
+            return hash(self.pk)
 
     @classmethod
     def _get_db(cls):
         """Some Model using other db_alias"""
-        return get_db(cls._meta.get("db_alias", DEFAULT_CONNECTION_NAME))
+        return get_db(cls._meta.get('db_alias', DEFAULT_CONNECTION_NAME))
 
     @classmethod
     def _get_collection(cls):
-        """Returns the collection for the document."""
-        # TODO: use new get_collection() with PyMongo3 ?
+        """Return a PyMongo collection for the document."""
         if not hasattr(cls, '_collection') or cls._collection is None:
-            db = cls._get_db()
-            collection_name = cls._get_collection_name()
-            # Create collection as a capped collection if specified
-            if cls._meta.get('max_size') or cls._meta.get('max_documents'):
-                # Get max document limit and max byte size from meta
-                max_size = cls._meta.get('max_size') or 10 * 2 ** 20  # 10MB default
-                max_documents = cls._meta.get('max_documents')
-                # Round up to next 256 bytes as MongoDB would do it to avoid exception
-                if max_size % 256:
-                    max_size = (max_size // 256 + 1) * 256
 
-                if collection_name in db.collection_names():
-                    cls._collection = db[collection_name]
-                    # The collection already exists, check if its capped
-                    # options match the specified capped options
-                    options = cls._collection.options()
-                    if options.get('max') != max_documents or \
-                            options.get('size') != max_size:
-                        msg = (('Cannot create collection "%s" as a capped '
-                                'collection as it already exists')
-                               % cls._collection)
-                        raise InvalidCollectionError(msg)
-                else:
-                    # Create the collection as a capped collection
-                    opts = {'capped': True, 'size': max_size}
-                    if max_documents:
-                        opts['max'] = max_documents
-                    cls._collection = db.create_collection(
-                        collection_name, **opts
-                    )
+            # Get the collection, either capped or regular.
+            if cls._meta.get('max_size') or cls._meta.get('max_documents'):
+                cls._collection = cls._get_capped_collection()
             else:
+                db = cls._get_db()
+                collection_name = cls._get_collection_name()
                 cls._collection = db[collection_name]
+
+            # Ensure indexes on the collection unless auto_create_index was
+            # set to False.
             if cls._meta.get('auto_create_index', True):
                 cls.ensure_indexes()
+
         return cls._collection
 
-    def modify(self, query={}, **update):
+    @classmethod
+    def _get_capped_collection(cls):
+        """Create a new or get an existing capped PyMongo collection."""
+        db = cls._get_db()
+        collection_name = cls._get_collection_name()
+
+        # Get max document limit and max byte size from meta.
+        max_size = cls._meta.get('max_size') or 10 * 2 ** 20  # 10MB default
+        max_documents = cls._meta.get('max_documents')
+
+        # MongoDB will automatically raise the size to make it a multiple of
+        # 256 bytes. We raise it here ourselves to be able to reliably compare
+        # the options below.
+        if max_size % 256:
+            max_size = (max_size // 256 + 1) * 256
+
+        # If the collection already exists and has different options
+        # (i.e. isn't capped or has different max/size), raise an error.
+        if collection_name in db.collection_names():
+            collection = db[collection_name]
+            options = collection.options()
+            if (
+                options.get('max') != max_documents or
+                options.get('size') != max_size
+            ):
+                raise InvalidCollectionError(
+                    'Cannot create collection "{}" as a capped '
+                    'collection as it already exists'.format(cls._collection)
+                )
+
+            return collection
+
+        # Create a new capped collection.
+        opts = {'capped': True, 'size': max_size}
+        if max_documents:
+            opts['max'] = max_documents
+
+        return db.create_collection(collection_name, **opts)
+
+    def to_mongo(self, *args, **kwargs):
+        data = super(Document, self).to_mongo(*args, **kwargs)
+
+        # If '_id' is None, try and set it from self._data. If that
+        # doesn't exist either, remote '_id' from the SON completely.
+        if data['_id'] is None:
+            if self._data.get('id') is None:
+                del data['_id']
+            else:
+                data['_id'] = self._data['id']
+
+        return data
+
+    def modify(self, query=None, **update):
         """Perform an atomic update of the document in the database and reload
         the document object using updated version.
 
@@ -224,17 +266,19 @@ class Document(BaseDocument):
             database matches the query
         :param update: Django-style update keyword arguments
         """
+        if query is None:
+            query = {}
 
         if self.pk is None:
-            raise InvalidDocumentError("The document does not have a primary key.")
+            raise InvalidDocumentError('The document does not have a primary key.')
 
-        id_field = self._meta["id_field"]
+        id_field = self._meta['id_field']
         query = query.copy() if isinstance(query, dict) else query.to_query(self)
 
         if id_field not in query:
             query[id_field] = self.pk
         elif query[id_field] != self.pk:
-            raise InvalidQueryError("Invalid document modify query: it must modify only this document.")
+            raise InvalidQueryError('Invalid document modify query: it must modify only this document.')
 
         updated = self._qs(**query).modify(new=True, **update)
         if updated is None:
@@ -256,7 +300,7 @@ class Document(BaseDocument):
         created.
 
         :param force_insert: only try to create a new document, don't allow
-            updates of existing documents
+            updates of existing documents.
         :param validate: validates the document; set to ``False`` to skip.
         :param clean: call the document clean method, requires `validate` to be
             True.
@@ -276,7 +320,7 @@ class Document(BaseDocument):
         :param save_condition: only perform save if matching record in db
             satisfies condition(s) (e.g. version number).
             Raises :class:`OperationError` if the conditions are not satisfied
-        :parm signal_kwargs: (optional) kwargs dictionary to be passed to
+        :param signal_kwargs: (optional) kwargs dictionary to be passed to
             the signal calls.
 
         .. versionchanged:: 0.5
@@ -302,6 +346,9 @@ class Document(BaseDocument):
         .. versionchanged:: 0.10.7
             Add signal_kwargs argument
         """
+        if self._meta.get('abstract'):
+            raise InvalidDocumentError('Cannot save an abstract document.')
+
         signal_kwargs = signal_kwargs or {}
         signals.pre_save.send(self.__class__, document=self, **signal_kwargs)
 
@@ -309,7 +356,7 @@ class Document(BaseDocument):
             self.validate(clean=clean)
 
         if write_concern is None:
-            write_concern = {"w": 1}
+            write_concern = {'w': 1}
 
         doc = self.to_mongo()
 
@@ -318,103 +365,145 @@ class Document(BaseDocument):
         signals.pre_save_post_validation.send(self.__class__, document=self,
                                               created=created, **signal_kwargs)
 
+        if self._meta.get('auto_create_index', True):
+            self.ensure_indexes()
+
         try:
-            collection = self._get_collection()
-            if self._meta.get('auto_create_index', True):
-                self.ensure_indexes()
+            # Save a new document or update an existing one
             if created:
-                if force_insert:
-                    object_id = collection.insert(doc, **write_concern)
-                else:
-                    object_id = collection.save(doc, **write_concern)
-                    # In PyMongo 3.0, the save() call calls internally the _update() call
-                    # but they forget to return the _id value passed back, therefore getting it back here
-                    # Correct behaviour in 2.X and in 3.0.1+ versions
-                    if not object_id and pymongo.version_tuple == (3, 0):
-                        pk_as_mongo_obj = self._fields.get(self._meta['id_field']).to_mongo(self.pk)
-                        object_id = self._qs.filter(pk=pk_as_mongo_obj).first() and \
-                                    self._qs.filter(pk=pk_as_mongo_obj).first().pk
+                object_id = self._save_create(doc, force_insert, write_concern)
             else:
-                object_id = doc['_id']
-                updates, removals = self._delta()
-                # Need to add shard key to query, or you get an error
-                if save_condition is not None:
-                    select_dict = transform.query(self.__class__,
-                                                  **save_condition)
-                else:
-                    select_dict = {}
-                select_dict['_id'] = object_id
-                shard_key = self.__class__._meta.get('shard_key', tuple())
-                for k in shard_key:
-                    path = self._lookup_field(k.split('.'))
-                    actual_key = [p.db_field for p in path]
-                    val = doc
-                    for ak in actual_key:
-                        val = val[ak]
-                    select_dict['.'.join(actual_key)] = val
-
-                def is_new_object(last_error):
-                    if last_error is not None:
-                        updated = last_error.get("updatedExisting")
-                        if updated is not None:
-                            return not updated
-                    return created
-
-                update_query = {}
-
-                if updates:
-                    update_query["$set"] = updates
-                if removals:
-                    update_query["$unset"] = removals
-                if updates or removals:
-                    upsert = save_condition is None
-                    last_error = collection.update(select_dict, update_query,
-                                                   upsert=upsert, **write_concern)
-                    if not upsert and last_error["n"] == 0:
-                        raise SaveConditionError('Race condition preventing'
-                                                 ' document update detected')
-                    created = is_new_object(last_error)
+                object_id, created = self._save_update(doc, save_condition,
+                                                       write_concern)
 
             if cascade is None:
-                cascade = self._meta.get(
-                    'cascade', False) or cascade_kwargs is not None
+                cascade = (self._meta.get('cascade', False) or
+                           cascade_kwargs is not None)
 
             if cascade:
                 kwargs = {
-                    "force_insert": force_insert,
-                    "validate": validate,
-                    "write_concern": write_concern,
-                    "cascade": cascade
+                    'force_insert': force_insert,
+                    'validate': validate,
+                    'write_concern': write_concern,
+                    'cascade': cascade
                 }
                 if cascade_kwargs:  # Allow granular control over cascades
                     kwargs.update(cascade_kwargs)
                 kwargs['_refs'] = _refs
                 self.cascade_save(**kwargs)
+
         except pymongo.errors.DuplicateKeyError as err:
             message = u'Tried to save duplicate unique keys (%s)'
-            raise NotUniqueError(message % unicode(err))
+            raise NotUniqueError(message % six.text_type(err))
         except pymongo.errors.OperationFailure as err:
             message = 'Could not save document (%s)'
-            if re.match('^E1100[01] duplicate key', unicode(err)):
+            if re.match('^E1100[01] duplicate key', six.text_type(err)):
                 # E11000 - duplicate key error index
                 # E11001 - duplicate key on update
                 message = u'Tried to save duplicate unique keys (%s)'
-                raise NotUniqueError(message % unicode(err))
-            raise OperationError(message % unicode(err))
+                raise NotUniqueError(message % six.text_type(err))
+            raise OperationError(message % six.text_type(err))
+
+        # Make sure we store the PK on this document now that it's saved
         id_field = self._meta['id_field']
         if created or id_field not in self._meta.get('shard_key', []):
             self[id_field] = self._fields[id_field].to_python(object_id)
 
         signals.post_save.send(self.__class__, document=self,
                                created=created, **signal_kwargs)
+
         self._clear_changed_fields()
         self._created = False
+
         return self
 
-    def cascade_save(self, *args, **kwargs):
-        """Recursively saves any references /
-           generic references on the document"""
-        _refs = kwargs.get('_refs', []) or []
+    def _save_create(self, doc, force_insert, write_concern):
+        """Save a new document.
+
+        Helper method, should only be used inside save().
+        """
+        collection = self._get_collection()
+
+        if force_insert:
+            return collection.insert(doc, **write_concern)
+
+        object_id = collection.save(doc, **write_concern)
+
+        # In PyMongo 3.0, the save() call calls internally the _update() call
+        # but they forget to return the _id value passed back, therefore getting it back here
+        # Correct behaviour in 2.X and in 3.0.1+ versions
+        if not object_id and pymongo.version_tuple == (3, 0):
+            pk_as_mongo_obj = self._fields.get(self._meta['id_field']).to_mongo(self.pk)
+            object_id = (
+                self._qs.filter(pk=pk_as_mongo_obj).first() and
+                self._qs.filter(pk=pk_as_mongo_obj).first().pk
+            )  # TODO doesn't this make 2 queries?
+
+        return object_id
+
+    def _get_update_doc(self):
+        """Return a dict containing all the $set and $unset operations
+        that should be sent to MongoDB based on the changes made to this
+        Document.
+        """
+        updates, removals = self._delta()
+
+        update_doc = {}
+        if updates:
+            update_doc['$set'] = updates
+        if removals:
+            update_doc['$unset'] = removals
+
+        return update_doc
+
+    def _save_update(self, doc, save_condition, write_concern):
+        """Update an existing document.
+
+        Helper method, should only be used inside save().
+        """
+        collection = self._get_collection()
+        object_id = doc['_id']
+        created = False
+
+        select_dict = {}
+        if save_condition is not None:
+            select_dict = transform.query(self.__class__, **save_condition)
+
+        select_dict['_id'] = object_id
+
+        # Need to add shard key to query, or you get an error
+        shard_key = self._meta.get('shard_key', tuple())
+        for k in shard_key:
+            path = self._lookup_field(k.split('.'))
+            actual_key = [p.db_field for p in path]
+            val = doc
+            for ak in actual_key:
+                val = val[ak]
+            select_dict['.'.join(actual_key)] = val
+
+        update_doc = self._get_update_doc()
+        if update_doc:
+            upsert = save_condition is None
+            last_error = collection.update(select_dict, update_doc,
+                                           upsert=upsert, **write_concern)
+            if not upsert and last_error['n'] == 0:
+                raise SaveConditionError('Race condition preventing'
+                                         ' document update detected')
+            if last_error is not None:
+                updated_existing = last_error.get('updatedExisting')
+                if updated_existing is False:
+                    created = True
+                    # !!! This is bad, means we accidentally created a new,
+                    # potentially corrupted document. See
+                    # https://github.com/MongoEngine/mongoengine/issues/564
+
+        return object_id, created
+
+    def cascade_save(self, **kwargs):
+        """Recursively save any references and generic references on the
+        document.
+        """
+        _refs = kwargs.get('_refs') or []
 
         ReferenceField = _import_class('ReferenceField')
         GenericReferenceField = _import_class('GenericReferenceField')
@@ -440,16 +529,17 @@ class Document(BaseDocument):
 
     @property
     def _qs(self):
-        """
-        Returns the queryset to use for updating / reloading / deletions
-        """
+        """Return the queryset to use for updating / reloading / deletions."""
         if not hasattr(self, '__objects'):
             self.__objects = QuerySet(self, self._get_collection())
         return self.__objects
 
     @property
     def _object_key(self):
-        """Dict to identify object in collection
+        """Get the query dict that can be used to fetch this object from
+        the database. Most of the time it's a simple PK lookup, but in
+        case of a sharded collection with a compound shard key, it can
+        contain a more complex query.
         """
         select_dict = {'pk': self.pk}
         shard_key = self.__class__._meta.get('shard_key', tuple())
@@ -469,11 +559,11 @@ class Document(BaseDocument):
         Raises :class:`OperationError` if called on an object that has not yet
         been saved.
         """
-        if not self.pk:
+        if self.pk is None:
             if kwargs.get('upsert', False):
                 query = self.to_mongo()
-                if "_cls" in query:
-                    del query["_cls"]
+                if '_cls' in query:
+                    del query['_cls']
                 return self._qs.filter(**query).update_one(**kwargs)
             else:
                 raise OperationError(
@@ -501,10 +591,10 @@ class Document(BaseDocument):
         signal_kwargs = signal_kwargs or {}
         signals.pre_delete.send(self.__class__, document=self, **signal_kwargs)
 
-        # Delete FileFields separately 
+        # Delete FileFields separately
         FileField = _import_class('FileField')
         for name, field in self._fields.iteritems():
-            if isinstance(field, FileField): 
+            if isinstance(field, FileField):
                 getattr(self, name).delete()
 
         try:
@@ -598,11 +688,12 @@ class Document(BaseDocument):
         if fields and isinstance(fields[0], int):
             max_depth = fields[0]
             fields = fields[1:]
-        elif "max_depth" in kwargs:
-            max_depth = kwargs["max_depth"]
+        elif 'max_depth' in kwargs:
+            max_depth = kwargs['max_depth']
 
-        if not self.pk:
-            raise self.DoesNotExist("Document does not exist")
+        if self.pk is None:
+            raise self.DoesNotExist('Document does not exist')
+
         obj = self._qs.read_preference(ReadPreference.PRIMARY).filter(
             **self._object_key).only(*fields).limit(
             1).select_related(max_depth=max_depth)
@@ -610,7 +701,7 @@ class Document(BaseDocument):
         if obj:
             obj = obj[0]
         else:
-            raise self.DoesNotExist("Document does not exist")
+            raise self.DoesNotExist('Document does not exist')
 
         for field in obj._data:
             if not fields or field in fields:
@@ -652,8 +743,8 @@ class Document(BaseDocument):
     def to_dbref(self):
         """Returns an instance of :class:`~bson.dbref.DBRef` useful in
         `__raw__` queries."""
-        if not self.pk:
-            msg = "Only saved documents can have a valid dbref"
+        if self.pk is None:
+            msg = 'Only saved documents can have a valid dbref'
             raise OperationError(msg)
         return DBRef(self.__class__._get_collection_name(), self.pk)
 
@@ -708,7 +799,7 @@ class Document(BaseDocument):
         fields = index_spec.pop('fields')
         drop_dups = kwargs.get('drop_dups', False)
         if IS_PYMONGO_3 and drop_dups:
-            msg = "drop_dups is deprecated and is removed when using PyMongo 3+."
+            msg = 'drop_dups is deprecated and is removed when using PyMongo 3+.'
             warnings.warn(msg, DeprecationWarning)
         elif not IS_PYMONGO_3:
             index_spec['drop_dups'] = drop_dups
@@ -734,7 +825,7 @@ class Document(BaseDocument):
             will be removed if PyMongo3+ is used
         """
         if IS_PYMONGO_3 and drop_dups:
-            msg = "drop_dups is deprecated and is removed when using PyMongo 3+."
+            msg = 'drop_dups is deprecated and is removed when using PyMongo 3+.'
             warnings.warn(msg, DeprecationWarning)
         elif not IS_PYMONGO_3:
             kwargs.update({'drop_dups': drop_dups})
@@ -754,7 +845,7 @@ class Document(BaseDocument):
         index_opts = cls._meta.get('index_opts') or {}
         index_cls = cls._meta.get('index_cls', True)
         if IS_PYMONGO_3 and drop_dups:
-            msg = "drop_dups is deprecated and is removed when using PyMongo 3+."
+            msg = 'drop_dups is deprecated and is removed when using PyMongo 3+.'
             warnings.warn(msg, DeprecationWarning)
 
         collection = cls._get_collection()
@@ -792,8 +883,7 @@ class Document(BaseDocument):
 
         # If _cls is being used (for polymorphism), it needs an index,
         # only if another index doesn't begin with _cls
-        if (index_cls and not cls_indexed and
-                cls._meta.get('allow_inheritance', ALLOW_INHERITANCE) is True):
+        if index_cls and not cls_indexed and cls._meta.get('allow_inheritance'):
 
             # we shouldn't pass 'cls' to the collection.ensureIndex options
             # because of https://jira.mongodb.org/browse/SERVER-769
@@ -812,7 +902,6 @@ class Document(BaseDocument):
         """ Lists all of the indexes that should be created for given
         collection. It includes all the indexes from super- and sub-classes.
         """
-
         if cls._meta.get('abstract'):
             return []
 
@@ -863,16 +952,15 @@ class Document(BaseDocument):
         # finish up by appending { '_id': 1 } and { '_cls': 1 }, if needed
         if [(u'_id', 1)] not in indexes:
             indexes.append([(u'_id', 1)])
-        if (cls._meta.get('index_cls', True) and
-                cls._meta.get('allow_inheritance', ALLOW_INHERITANCE) is True):
+        if cls._meta.get('index_cls', True) and cls._meta.get('allow_inheritance'):
             indexes.append([(u'_cls', 1)])
 
         return indexes
 
     @classmethod
     def compare_indexes(cls):
-        """ Compares the indexes defined in MongoEngine with the ones existing
-        in the database. Returns any missing/extra indexes.
+        """ Compares the indexes defined in MongoEngine with the ones
+        existing in the database. Returns any missing/extra indexes.
         """
 
         required = cls.list_indexes()
@@ -916,8 +1004,9 @@ class DynamicDocument(Document):
     _dynamic = True
 
     def __delattr__(self, *args, **kwargs):
-        """Deletes the attribute by setting to None and allowing _delta to unset
-        it"""
+        """Delete the attribute by setting to None and allowing _delta
+        to unset it.
+        """
         field_name = args[0]
         if field_name in self._dynamic_fields:
             setattr(self, field_name, None)
@@ -939,8 +1028,9 @@ class DynamicEmbeddedDocument(EmbeddedDocument):
     _dynamic = True
 
     def __delattr__(self, *args, **kwargs):
-        """Deletes the attribute by setting to None and allowing _delta to unset
-        it"""
+        """Delete the attribute by setting to None and allowing _delta
+        to unset it.
+        """
         field_name = args[0]
         if field_name in self._fields:
             default = self._fields[field_name].default
@@ -982,10 +1072,10 @@ class MapReduceDocument(object):
             try:
                 self.key = id_field_type(self.key)
             except Exception:
-                raise Exception("Could not cast key as %s" %
+                raise Exception('Could not cast key as %s' %
                                 id_field_type.__name__)
 
-        if not hasattr(self, "_key_object"):
+        if not hasattr(self, '_key_object'):
             self._key_object = self._document.objects.with_id(self.key)
             return self._key_object
         return self._key_object

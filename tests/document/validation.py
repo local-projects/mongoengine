@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-import sys
-sys.path[0:0] = [""]
-
 import unittest
 from datetime import datetime
 
@@ -156,14 +153,14 @@ class ValidatorErrorTest(unittest.TestCase):
 
         s = SubDoc()
 
-        self.assertRaises(ValidationError, lambda: s.validate())
+        self.assertRaises(ValidationError, s.validate)
 
         d1.e = s
         d2.e = s
 
         del d1
 
-        self.assertRaises(ValidationError, lambda: d2.validate())
+        self.assertRaises(ValidationError, d2.validate)
 
     def test_parent_reference_in_child_document(self):
         """
