@@ -165,7 +165,7 @@ def get_connection(alias=DEFAULT_CONNECTION_NAME, reconnect=False):
             'authentication_source', 'authentication_mechanism'
         }
         return {
-            k: v for k, v in settings_dict.items()
+            k: v for k, v in list(settings_dict.items())
             if k not in irrelevant_fields_set
         }
 
@@ -208,7 +208,7 @@ def get_connection(alias=DEFAULT_CONNECTION_NAME, reconnect=False):
     existing_connection = None
     connection_settings_iterator = (
         (db_alias, settings.copy())
-        for db_alias, settings in _connection_settings.items()
+        for db_alias, settings in list(_connection_settings.items())
     )
     for db_alias, connection_settings in connection_settings_iterator:
         connection_settings = _clean_settings(connection_settings)

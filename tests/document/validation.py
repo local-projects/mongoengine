@@ -128,7 +128,7 @@ class ValidatorErrorTest(unittest.TestCase):
         Doc(id="test", e=SubDoc(val=15)).save()
 
         doc = Doc.objects.first()
-        keys = doc._data.keys()
+        keys = list(doc._data.keys())
         self.assertEqual(2, len(keys))
         self.assertIn('e', keys)
         self.assertIn('id', keys)

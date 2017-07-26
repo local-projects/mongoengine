@@ -65,7 +65,11 @@ class DocumentMetaclass(type):
             # Standard object mixin - merge in any Fields
             if not hasattr(base, '_meta'):
                 base_fields = {}
+<<<<<<< HEAD
                 for attr_name, attr_value in iteritems(base.__dict__):
+=======
+                for attr_name, attr_value in base.__dict__.items():
+>>>>>>> Run 2to3
                     if not isinstance(attr_value, BaseField):
                         continue
                     attr_value.name = attr_name
@@ -77,7 +81,11 @@ class DocumentMetaclass(type):
 
         # Discover any document fields
         field_names = {}
+<<<<<<< HEAD
         for attr_name, attr_value in iteritems(attrs):
+=======
+        for attr_name, attr_value in attrs.items():
+>>>>>>> Run 2to3
             if not isinstance(attr_value, BaseField):
                 continue
             attr_value.name = attr_name
@@ -90,7 +98,7 @@ class DocumentMetaclass(type):
                 attr_value.db_field, 0) + 1
 
         # Ensure no duplicate db_fields
-        duplicate_db_fields = [k for k, v in field_names.items() if v > 1]
+        duplicate_db_fields = [k for k, v in list(field_names.items()) if v > 1]
         if duplicate_db_fields:
             msg = ('Multiple db_fields defined for: %s ' %
                    ', '.join(duplicate_db_fields))
@@ -99,14 +107,18 @@ class DocumentMetaclass(type):
         # Set _fields and db_field maps
         attrs['_fields'] = doc_fields
         attrs['_db_field_map'] = {k: getattr(v, 'db_field', k)
-                                  for k, v in doc_fields.items()}
+                                  for k, v in list(doc_fields.items())}
         attrs['_reverse_db_field_map'] = {
-            v: k for k, v in attrs['_db_field_map'].items()
+            v: k for k, v in list(attrs['_db_field_map'].items())
         }
 
         attrs['_fields_ordered'] = tuple(i[1] for i in sorted(
                                          (v.creation_counter, v.name)
+<<<<<<< HEAD
                                          for v in itervalues(doc_fields)))
+=======
+                                         for v in doc_fields.values()))
+>>>>>>> Run 2to3
 
         #
         # Set document hierarchy
@@ -167,7 +179,7 @@ class DocumentMetaclass(type):
         # copies __func__ into im_func and __self__ into im_self for
         # classmethod objects in Document derived classes.
         if six.PY3:
-            for val in new_class.__dict__.values():
+            for val in list(new_class.__dict__.values()):
                 if isinstance(val, classmethod):
                     f = val.__get__(new_class)
                     if hasattr(f, '__func__') and not hasattr(f, 'im_func'):
@@ -176,7 +188,11 @@ class DocumentMetaclass(type):
                         f.__dict__.update({'im_self': getattr(f, '__self__')})
 
         # Handle delete rules
+<<<<<<< HEAD
         for field in itervalues(new_class._fields):
+=======
+        for field in new_class._fields.values():
+>>>>>>> Run 2to3
             f = field
             if f.owner_document is None:
                 f.owner_document = new_class
@@ -378,7 +394,11 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
             new_class.objects = QuerySetManager()
 
         # Validate the fields and set primary key if needed
+<<<<<<< HEAD
         for field_name, field in iteritems(new_class._fields):
+=======
+        for field_name, field in new_class._fields.items():
+>>>>>>> Run 2to3
             if field.primary_key:
                 # Ensure only one primary key is set
                 current_pk = new_class._meta.get('id_field')
@@ -423,7 +443,7 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
                     attr = getattr(new_class, attr_name)
 
                     if hasattr(attr, '_mongoengine_signals'):
-                        for key in attr._mongoengine_signals.keys():
+                        for key in list(attr._mongoengine_signals.keys()):
                             signal = _signals.get(key)
                             if signal:
                                 signal.connect(attr, sender=new_class)
@@ -436,11 +456,11 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
     def get_auto_id_names(mcs, new_class):
         id_name, id_db_name = ('id', '_id')
         if id_name not in new_class._fields and \
-                id_db_name not in (v.db_field for v in new_class._fields.values()):
+                id_db_name not in (v.db_field for v in list(new_class._fields.values())):
             return id_name, id_db_name
         id_basename, id_db_basename, i = 'auto_id', '_auto_id', 0
         while id_name in new_class._fields or \
-                id_db_name in (v.db_field for v in new_class._fields.values()):
+                id_db_name in (v.db_field for v in list(new_class._fields.values())):
             id_name = '{0}_{1}'.format(id_basename, i)
             id_db_name = '{0}_{1}'.format(id_db_basename, i)
             i += 1
@@ -454,7 +474,11 @@ class MetaDict(dict):
     _merge_options = ('indexes',)
 
     def merge(self, new_options):
+<<<<<<< HEAD
         for k, v in iteritems(new_options):
+=======
+        for k, v in new_options.items():
+>>>>>>> Run 2to3
             if k in self._merge_options:
                 self[k] = self.get(k, []) + v
             else:

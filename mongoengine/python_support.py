@@ -14,10 +14,11 @@ StringIO = six.BytesIO
 # Additionally for Py2, try to use the faster cStringIO, if available
 if not six.PY3:
     try:
-        import cStringIO
+        import io
     except ImportError:
         pass
     else:
+<<<<<<< HEAD
         StringIO = cStringIO.StringIO
 
 
@@ -26,3 +27,6 @@ if six.PY3:
 else:
     # raises DeprecationWarnings in Python >=3.7
     from collections import Hashable
+=======
+        StringIO = io.StringIO
+>>>>>>> Run 2to3

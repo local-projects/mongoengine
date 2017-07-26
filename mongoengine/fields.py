@@ -23,7 +23,7 @@ else:
 try:
     from bson.int64 import Int64
 except ImportError:
-    Int64 = long
+    Int64 = int
 
 from mongoengine.base import (BaseDocument, BaseField, ComplexBaseField,
                               GeoJsonBaseField, LazyReference, ObjectIdField,
@@ -159,12 +159,12 @@ class URLField(StringField):
         # Check first if the scheme is valid
         scheme = value.split('://')[0].lower()
         if scheme not in self.schemes:
-            self.error(u'Invalid scheme {} in URL: {}'.format(scheme, value))
+            self.error('Invalid scheme {} in URL: {}'.format(scheme, value))
             return
 
         # Then check full URL
         if not self.url_regex.match(value):
-            self.error(u'Invalid URL: {}'.format(value))
+            self.error('Invalid URL: {}'.format(value))
             return
 
         if self.verify_exists:
@@ -206,7 +206,7 @@ class EmailField(StringField):
         re.IGNORECASE
     )
 
-    error_msg = u'Invalid email address: %s'
+    error_msg = 'Invalid email address: %s'
 
     def __init__(self, domain_whitelist=None, allow_utf8_user=False,
                  allow_ip_domain=False, *args, **kwargs):
@@ -325,8 +325,13 @@ class LongField(BaseField):
 
     def to_python(self, value):
         try:
+<<<<<<< HEAD
             value = long(value)
         except (TypeError, ValueError):
+=======
+            value = int(value)
+        except ValueError:
+>>>>>>> Run 2to3
             pass
         return value
 
@@ -335,8 +340,13 @@ class LongField(BaseField):
 
     def validate(self, value):
         try:
+<<<<<<< HEAD
             value = long(value)
         except (TypeError, ValueError):
+=======
+            value = int(value)
+        except Exception:
+>>>>>>> Run 2to3
             self.error('%s could not be converted to long' % value)
 
         if self.min_value is not None and value < self.min_value:
@@ -349,7 +359,7 @@ class LongField(BaseField):
         if value is None:
             return value
 
-        return super(LongField, self).prepare_query_value(op, long(value))
+        return super(LongField, self).prepare_query_value(op, int(value))
 
 
 class FloatField(BaseField):
@@ -503,7 +513,7 @@ class DateTimeField(BaseField):
     def validate(self, value):
         new_value = self.to_mongo(value)
         if not isinstance(new_value, (datetime.datetime, datetime.date)):
-            self.error(u'cannot parse date "%s"' % value)
+            self.error('cannot parse date "%s"' % value)
 
     def to_mongo(self, value):
         if value is None:
@@ -624,7 +634,11 @@ class ComplexDateTimeField(StringField):
         >>> ComplexDateTimeField()._convert_from_string(a)
         datetime.datetime(2011, 6, 8, 20, 26, 24, 92284)
         """
+<<<<<<< HEAD
         values = [int(d) for d in data.split(self.separator)]
+=======
+        values = list(map(int, data.split(self.separator)))
+>>>>>>> Run 2to3
         return datetime.datetime(*values)
 
     def __get__(self, instance, owner):
@@ -814,12 +828,20 @@ class DynamicField(BaseField):
             value = {k: v for k, v in enumerate(value)}
 
         data = {}
+<<<<<<< HEAD
         for k, v in iteritems(value):
+=======
+        for k, v in value.items():
+>>>>>>> Run 2to3
             data[k] = self.to_mongo(v, use_db_field, fields)
 
         value = data
         if is_list:  # Convert back to a list
+<<<<<<< HEAD
             value = [v for k, v in sorted(iteritems(data), key=itemgetter(0))]
+=======
+            value = [v for k, v in sorted(iter(data.items()), key=itemgetter(0))]
+>>>>>>> Run 2to3
         return value
 
     def to_python(self, value):
@@ -936,9 +958,9 @@ class SortedListField(ListField):
     _order_reverse = False
 
     def __init__(self, field, **kwargs):
-        if 'ordering' in kwargs.keys():
+        if 'ordering' in list(kwargs.keys()):
             self._ordering = kwargs.pop('ordering')
-        if 'reverse' in kwargs.keys():
+        if 'reverse' in list(kwargs.keys()):
             self._order_reverse = kwargs.pop('reverse')
         super(SortedListField, self).__init__(field, **kwargs)
 
@@ -954,7 +976,7 @@ def key_not_string(d):
     """Helper function to recursively determine if any key in a
     dictionary is not a string.
     """
-    for k, v in d.items():
+    for k, v in list(d.items()):
         if not isinstance(k, six.string_types) or (isinstance(v, dict) and key_not_string(v)):
             return True
 
@@ -963,8 +985,13 @@ def key_has_dot_or_dollar(d):
     """Helper function to recursively determine if any key in a
     dictionary contains a dot or a dollar sign.
     """
+<<<<<<< HEAD
     for k, v in d.items():
         if ('.' in k or k.startswith('$')) or (isinstance(v, dict) and key_has_dot_or_dollar(v)):
+=======
+    for k, v in list(d.items()):
+        if ('.' in k or '$' in k) or (isinstance(v, dict) and key_has_dot_or_dollar(v)):
+>>>>>>> Run 2to3
             return True
 
 
@@ -1015,7 +1042,7 @@ class DictField(ComplexBaseField):
             if op in ('set', 'unset') and isinstance(value, dict):
                 return {
                     k: self.field.prepare_query_value(op, v)
-                    for k, v in value.items()
+                    for k, v in list(value.items())
                 }
             return self.field.prepare_query_value(op, value)
 
@@ -1241,7 +1268,7 @@ class CachedReferenceField(BaseField):
 
         update_kwargs = {
             'set__%s__%s' % (self.name, key): val
-            for key, val in document._delta()[0].items()
+            for key, val in list(document._delta()[0].items())
             if key in self.fields
         }
         if update_kwargs:
@@ -1911,7 +1938,7 @@ class ImageField(FileField):
             'size': size,
             'thumbnail_size': thumbnail_size
         }
-        for att_name, att in extra_args.items():
+        for att_name, att in list(extra_args.items()):
             value = None
             if isinstance(att, (tuple, list)):
                 if six.PY3:

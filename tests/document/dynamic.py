@@ -28,9 +28,9 @@ class TestDynamicDocument(MongoDBTestCase):
 
         self.assertEqual(p.to_mongo(), {"_cls": "Person", "name": "James",
                                         "age": 34})
-        self.assertEqual(p.to_mongo().keys(), ["_cls", "name", "age"])
+        self.assertEqual(list(p.to_mongo().keys()), ["_cls", "name", "age"])
         p.save()
-        self.assertEqual(p.to_mongo().keys(), ["_id", "_cls", "name", "age"])
+        self.assertEqual(list(p.to_mongo().keys()), ["_id", "_cls", "name", "age"])
 
         self.assertEqual(self.Person.objects.first().age, 34)
 

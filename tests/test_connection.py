@@ -376,9 +376,12 @@ class ConnectionTest(unittest.TestCase):
         connect('mongoenginetest2', alias='t2', host="127.0.0.1")
 
         mongo_connections = mongoengine.connection._connections
-        self.assertEqual(len(mongo_connections.items()), 2)
-        self.assertIn('t1', mongo_connections.keys())
-        self.assertIn('t2', mongo_connections.keys())
+        # self.assertEqual(len(mongo_connections.items()), 2)
+        # self.assertIn('t1', mongo_connections.keys())
+        # self.assertIn('t2', mongo_connections.keys())
+        self.assertEqual(len(list(mongo_connections.items())), 2)
+        self.assertTrue('t1' in list(mongo_connections.keys()))
+        self.assertTrue('t2' in list(mongo_connections.keys()))
         if not IS_PYMONGO_3:
             self.assertEqual(mongo_connections['t1'].host, 'localhost')
             self.assertEqual(mongo_connections['t2'].host, '127.0.0.1')

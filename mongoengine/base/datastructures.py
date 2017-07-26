@@ -131,8 +131,32 @@ class BaseList(list):
         return value
 
     def __iter__(self):
+<<<<<<< HEAD
         for v in super(BaseList, self).__iter__():
             yield v
+=======
+        for i in range(self.__len__()):
+            yield self[i]
+
+    def __setitem__(self, key, value, *args, **kwargs):
+        if isinstance(key, slice):
+            self._mark_as_changed()
+        else:
+            self._mark_as_changed(key)
+        return super(BaseList, self).__setitem__(key, value)
+
+    def __delitem__(self, key, *args, **kwargs):
+        self._mark_as_changed()
+        return super(BaseList, self).__delitem__(key)
+
+    def __setslice__(self, *args, **kwargs):
+        self._mark_as_changed()
+        return super(BaseList, self).__setslice__(*args, **kwargs)
+
+    def __delslice__(self, *args, **kwargs):
+        self._mark_as_changed()
+        return super(BaseList, self).__delslice__(*args, **kwargs)
+>>>>>>> Run 2to3
 
     def __getstate__(self):
         self.instance = None
@@ -199,7 +223,7 @@ class EmbeddedDocumentList(BaseList):
         """Return True if a given embedded doc matches all the filter
         kwargs. If it doesn't return False.
         """
-        for key, expected_value in kwargs.items():
+        for key, expected_value in list(kwargs.items()):
             doc_val = getattr(embedded_doc, key)
             if doc_val != expected_value and six.text_type(doc_val) != expected_value:
                 return False
@@ -352,7 +376,7 @@ class EmbeddedDocumentList(BaseList):
             return 0
         values = list(self)
         for item in values:
-            for k, v in update.items():
+            for k, v in list(update.items()):
                 setattr(item, k, v)
 
         return len(values)
@@ -364,7 +388,11 @@ class StrictDict(object):
     _classes = {}
 
     def __init__(self, **kwargs):
+<<<<<<< HEAD
         for k, v in iteritems(kwargs):
+=======
+        for k, v in kwargs.items():
+>>>>>>> Run 2to3
             setattr(self, k, v)
 
     def __getitem__(self, key):
@@ -412,13 +440,17 @@ class StrictDict(object):
         return (key for key in self.__slots__ if hasattr(self, key))
 
     def __len__(self):
+<<<<<<< HEAD
         return len(list(iteritems(self)))
+=======
+        return len(list(self.items()))
+>>>>>>> Run 2to3
 
     def __eq__(self, other):
-        return self.items() == other.items()
+        return list(self.items()) == list(other.items())
 
     def __ne__(self, other):
-        return self.items() != other.items()
+        return list(self.items()) != list(other.items())
 
     @classmethod
     def create(cls, allowed_keys):
@@ -429,7 +461,7 @@ class StrictDict(object):
                 __slots__ = allowed_keys_tuple
 
                 def __repr__(self):
-                    return '{%s}' % ', '.join('"{0!s}": {1!r}'.format(k, v) for k, v in self.items())
+                    return '{%s}' % ', '.join('"{0!s}": {1!r}'.format(k, v) for k, v in list(self.items()))
 
             cls._classes[allowed_keys] = SpecificStrictDict
         return cls._classes[allowed_keys]

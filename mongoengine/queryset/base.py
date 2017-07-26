@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 import copy
 import itertools
@@ -224,6 +224,13 @@ class BaseQuerySet(object):
         queryset = self.order_by()
         return False if queryset.first() is None else True
 
+<<<<<<< HEAD
+=======
+    def __bool__(self):
+        """Avoid to open all records in an if stmt in Py2."""
+        return self._has_data()
+
+>>>>>>> Run 2to3
     def __bool__(self):
         """Avoid to open all records in an if stmt in Py3."""
         return self._has_data()
@@ -282,20 +289,28 @@ class BaseQuerySet(object):
         queryset = queryset.filter(*q_objs, **query)
 
         try:
+<<<<<<< HEAD
             result = six.next(queryset)
+=======
+            result = next(queryset)
+>>>>>>> Run 2to3
         except StopIteration:
             msg = ('%s matching query does not exist.'
                    % queryset._document._class_name)
             raise queryset._document.DoesNotExist(msg)
         try:
+<<<<<<< HEAD
             six.next(queryset)
+=======
+            next(queryset)
+>>>>>>> Run 2to3
         except StopIteration:
             return result
 
         # If we were able to retrieve the 2nd doc, rewind the cursor and
         # raise the MultipleObjectsReturned exception.
         queryset.rewind()
-        message = u'%d items returned, instead of 1' % queryset.count()
+        message = '%d items returned, instead of 1' % queryset.count()
         raise queryset._document.MultipleObjectsReturned(message)
 
     def create(self, **kwargs):
@@ -390,7 +405,7 @@ class BaseQuerySet(object):
             if re.match('^E1100[01] duplicate key', six.text_type(err)):
                 # E11000 - duplicate key error index
                 # E11001 - duplicate key on update
-                message = u'Tried to save duplicate unique keys (%s)'
+                message = 'Tried to save duplicate unique keys (%s)'
                 raise NotUniqueError(message % six.text_type(err))
             raise OperationError(message % six.text_type(err))
 
@@ -562,12 +577,19 @@ class BaseQuerySet(object):
             elif result:
                 return result['n']
         except pymongo.errors.DuplicateKeyError as err:
+<<<<<<< HEAD
             raise NotUniqueError(u'Update failed (%s)' % unicode(err))
         except pymongo.errors.OperationFailure as err:
             if unicode(err) == u'multi not coded yet':
                 message = u'update() method requires MongoDB 1.1.3+'
+=======
+            raise NotUniqueError('Update failed (%s)' % six.text_type(err))
+        except pymongo.errors.OperationFailure as err:
+            if six.text_type(err) == 'multi not coded yet':
+                message = 'update() method requires MongoDB 1.1.3+'
+>>>>>>> Run 2to3
                 raise OperationError(message)
-            raise OperationError(u'Update failed (%s)' % six.text_type(err))
+            raise OperationError('Update failed (%s)' % six.text_type(err))
 
     def upsert_one(self, write_concern=None, **update):
         """Overwrite or add the first document matched by the query.
@@ -679,12 +701,18 @@ class BaseQuerySet(object):
                     query, update, upsert=upsert, sort=sort, remove=remove, new=new,
                     full_response=full_response, **self._cursor_args)
         except pymongo.errors.DuplicateKeyError as err:
+<<<<<<< HEAD
         #     raise NotUniqueError(u'Update failed (%s)' % err)
         # except pymongo.errors.OperationFailure as err:
         #     raise OperationError(u'Update failed (%s)' % err)
             raise NotUniqueError(u"Update failed (%s)" % err)
         except pymongo.errors.OperationFailure as err:
             raise OperationError(u"Update failed (%s)" % err)
+=======
+            raise NotUniqueError('Update failed (%s)' % err)
+        except pymongo.errors.OperationFailure as err:
+            raise OperationError('Update failed (%s)' % err)
+>>>>>>> Run 2to3
 
         if full_response:
             if result['value'] is not None:
@@ -954,7 +982,7 @@ class BaseQuerySet(object):
         .. versionchanged:: 0.5 - Added subfield support
         """
         fields = {f: QueryFieldList.ONLY for f in fields}
-        self.only_fields = fields.keys()
+        self.only_fields = list(fields.keys())
         return self.fields(True, **fields)
 
     def exclude(self, *fields):
@@ -1004,7 +1032,7 @@ class BaseQuerySet(object):
         # Check for an operator and transform to mongo-style if there is
         operators = ['slice']
         cleaned_fields = []
-        for key, value in kwargs.items():
+        for key, value in list(kwargs.items()):
             parts = key.split('__')
             if parts[0] in operators:
                 op = parts.pop(0)
@@ -1522,7 +1550,11 @@ class BaseQuerySet(object):
         if self._limit == 0 or self._none:
             raise StopIteration
 
+<<<<<<< HEAD
         raw_doc = six.next(self._cursor)
+=======
+        raw_doc = next(self._cursor)
+>>>>>>> Run 2to3
 
         if self._as_pymongo:
             return raw_doc
@@ -1718,7 +1750,7 @@ class BaseQuerySet(object):
         if normalize:
             count = sum(frequencies.values())
             frequencies = {k: float(v) / count
-                           for k, v in frequencies.items()}
+                           for k, v in list(frequencies.items())}
 
         return frequencies
 
@@ -1770,13 +1802,21 @@ class BaseQuerySet(object):
             }
         """
         total, data, types = self.exec_js(freq_func, field)
+<<<<<<< HEAD
         values = {types.get(k): int(v) for k, v in iteritems(data)}
+=======
+        values = {types.get(k): int(v) for k, v in data.items()}
+>>>>>>> Run 2to3
 
         if normalize:
-            values = {k: float(v) / total for k, v in values.items()}
+            values = {k: float(v) / total for k, v in list(values.items())}
 
         frequencies = {}
+<<<<<<< HEAD
         for k, v in iteritems(values):
+=======
+        for k, v in values.items():
+>>>>>>> Run 2to3
             if isinstance(k, float):
                 if int(k) == k:
                     k = int(k)
@@ -1887,7 +1927,7 @@ class BaseQuerySet(object):
             field_name = match.group(1).split('.')
             fields = self._document._lookup_field(field_name)
             # Substitute the correct name for the field into the javascript
-            return u'["%s"]' % fields[-1].db_field
+            return '["%s"]' % fields[-1].db_field
 
         def field_path_sub(match):
             # Extract just the field name, and look up the field objects
@@ -1896,8 +1936,13 @@ class BaseQuerySet(object):
             # Substitute the correct name for the field into the javascript
             return '.'.join([f.db_field for f in fields])
 
+<<<<<<< HEAD
         code = re.sub(r'\[\s*~([A-z_][A-z_0-9.]+?)\s*\]', field_sub, code)
         code = re.sub(r'\{\{\s*~([A-z_][A-z_0-9.]+?)\s*\}\}', field_path_sub,
+=======
+        code = re.sub('\[\s*~([A-z_][A-z_0-9.]+?)\s*\]', field_sub, code)
+        code = re.sub('\{\{\s*~([A-z_][A-z_0-9.]+?)\s*\}\}', field_path_sub,
+>>>>>>> Run 2to3
                       code)
         return code
 

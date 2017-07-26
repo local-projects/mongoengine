@@ -4,14 +4,25 @@ import unittest
 
 from nose.plugins.skip import SkipTest
 
-from bson import DBRef, ObjectId, SON
+# from bson import DBRef, ObjectId, SON
 
-from mongoengine import Document, StringField, IntField, DateTimeField, DateField, ValidationError, \
-    ComplexDateTimeField, FloatField, ListField, ReferenceField, DictField, EmbeddedDocument, EmbeddedDocumentField, \
-    GenericReferenceField, DoesNotExist, NotRegistered, GenericEmbeddedDocumentField, OperationError, DynamicField, \
-    FieldDoesNotExist, EmbeddedDocumentListField, MultipleObjectsReturned, NotUniqueError, BooleanField, ObjectIdField, \
-    SortedListField, GenericLazyReferenceField, LazyReferenceField, DynamicDocument
-from mongoengine.base import (BaseField, EmbeddedDocumentList,
+# from mongoengine import Document, StringField, IntField, DateTimeField, DateField, ValidationError, \
+#     ComplexDateTimeField, FloatField, ListField, ReferenceField, DictField, EmbeddedDocument, EmbeddedDocumentField, \
+#     GenericReferenceField, DoesNotExist, NotRegistered, GenericEmbeddedDocumentField, OperationError, DynamicField, \
+#     FieldDoesNotExist, EmbeddedDocumentListField, MultipleObjectsReturned, NotUniqueError, BooleanField, ObjectIdField, \
+#     SortedListField, GenericLazyReferenceField, LazyReferenceField, DynamicDocument
+# from mongoengine.base import (BaseField, EmbeddedDocumentList, _document_registry)
+from decimal import Decimal
+
+from bson import Binary, DBRef, ObjectId, SON
+try:
+    from bson.int64 import Int64
+except ImportError:
+    Int64 = int
+
+from mongoengine import *
+from mongoengine.connection import get_db
+from mongoengine.base import (BaseDict, BaseField, EmbeddedDocumentList,
                               _document_registry)
 
 from tests.utils import MongoDBTestCase
@@ -213,7 +224,7 @@ class FieldTest(MongoDBTestCase):
         HandleNoneFields.drop_collection()
 
         doc = HandleNoneFields()
-        doc.str_fld = u'spam ham egg'
+        doc.str_fld = 'spam ham egg'
         doc.int_fld = 42
         doc.flt_fld = 4.2
         doc.com_dt_fld = datetime.datetime.utcnow()
@@ -248,7 +259,7 @@ class FieldTest(MongoDBTestCase):
         HandleNoneFields.drop_collection()
 
         doc = HandleNoneFields()
-        doc.str_fld = u'spam ham egg'
+        doc.str_fld = 'spam ham egg'
         doc.int_fld = 42
         doc.flt_fld = 4.2
         doc.comp_dt_fld = datetime.datetime.utcnow()
@@ -318,6 +329,152 @@ class FieldTest(MongoDBTestCase):
         person.name = 'Shorter name'
         person.validate()
 
+    def test_url_validation(self):
+        """Ensure that URLFields validate urls properly."""
+        class Link(Document):
+            url = URLField()
+
+        link = Link()
+        link.url = 'google'
+        self.assertRaises(ValidationError, link.validate)
+
+        link.url = 'http://www.google.com:8080'
+        link.validate()
+
+    def test_unicode_url_validation(self):
+        """Ensure unicode URLs are validated properly."""
+        class Link(Document):
+            url = URLField()
+
+        link = Link()
+        link.url = 'http://привет.com'
+
+        # TODO fix URL validation - this *IS* a valid URL
+        # For now we just want to make sure that the error message is correct
+        try:
+            link.validate()
+            self.assertTrue(False)
+        except ValidationError as e:
+            self.assertEqual(
+                str(e),
+                "ValidationError (Link:None) (Invalid URL: http://\u043f\u0440\u0438\u0432\u0435\u0442.com: ['url'])"
+            )
+
+    def test_url_scheme_validation(self):
+        """Ensure that URLFields validate urls with specific schemes properly.
+        """
+        class Link(Document):
+            url = URLField()
+
+        class SchemeLink(Document):
+            url = URLField(schemes=['ws', 'irc'])
+
+        link = Link()
+        link.url = 'ws://google.com'
+        self.assertRaises(ValidationError, link.validate)
+
+        scheme_link = SchemeLink()
+        scheme_link.url = 'ws://google.com'
+        scheme_link.validate()
+
+    def test_int_validation(self):
+        """Ensure that invalid values cannot be assigned to int fields.
+        """
+        class Person(Document):
+            age = IntField(min_value=0, max_value=110)
+
+        person = Person()
+        person.age = 50
+        person.validate()
+
+        person.age = -1
+        self.assertRaises(ValidationError, person.validate)
+        person.age = 120
+        self.assertRaises(ValidationError, person.validate)
+        person.age = 'ten'
+        self.assertRaises(ValidationError, person.validate)
+
+    def test_long_validation(self):
+        """Ensure that invalid values cannot be assigned to long fields.
+        """
+        class TestDocument(Document):
+            value = LongField(min_value=0, max_value=110)
+
+        doc = TestDocument()
+        doc.value = 50
+        doc.validate()
+
+        doc.value = -1
+        self.assertRaises(ValidationError, doc.validate)
+        doc.age = 120
+        self.assertRaises(ValidationError, doc.validate)
+        doc.age = 'ten'
+        self.assertRaises(ValidationError, doc.validate)
+
+    def test_float_validation(self):
+        """Ensure that invalid values cannot be assigned to float fields.
+        """
+        class Person(Document):
+            height = FloatField(min_value=0.1, max_value=3.5)
+
+        class BigPerson(Document):
+            height = FloatField()
+
+        person = Person()
+        person.height = 1.89
+        person.validate()
+
+        person.height = '2.0'
+        self.assertRaises(ValidationError, person.validate)
+
+        person.height = 0.01
+        self.assertRaises(ValidationError, person.validate)
+
+        person.height = 4.0
+        self.assertRaises(ValidationError, person.validate)
+
+        person_2 = Person(height='something invalid')
+        self.assertRaises(ValidationError, person_2.validate)
+
+        big_person = BigPerson()
+
+        for value, value_type in enumerate(six.integer_types):
+            big_person.height = value_type(value)
+            big_person.validate()
+
+        big_person.height = 2 ** 500
+        big_person.validate()
+
+        big_person.height = 2 ** 100000  # Too big for a float value
+        self.assertRaises(ValidationError, big_person.validate)
+
+    def test_decimal_validation(self):
+        """Ensure that invalid values cannot be assigned to decimal fields.
+        """
+        class Person(Document):
+            height = DecimalField(min_value=Decimal('0.1'),
+                                  max_value=Decimal('3.5'))
+
+        Person.drop_collection()
+
+        Person(height=Decimal('1.89')).save()
+        person = Person.objects.first()
+        self.assertEqual(person.height, Decimal('1.89'))
+
+        person.height = '2.0'
+        person.save()
+        person.height = 0.01
+        self.assertRaises(ValidationError, person.validate)
+        person.height = Decimal('0.01')
+        self.assertRaises(ValidationError, person.validate)
+        person.height = Decimal('4.0')
+        self.assertRaises(ValidationError, person.validate)
+        person.height = 'something invalid'
+        self.assertRaises(ValidationError, person.validate)
+
+        person_2 = Person(height='something invalid')
+        self.assertRaises(ValidationError, person_2.validate)
+
     def test_db_field_validation(self):
         """Ensure that db_field doesn't accept invalid values."""
 
@@ -335,6 +492,405 @@ class FieldTest(MongoDBTestCase):
         with self.assertRaises(ValueError):
             class User(Document):
                 name = StringField(db_field='name\0')
+
+    def test_decimal_comparison(self):
+        class Person(Document):
+            money = DecimalField()
+
+        Person.drop_collection()
+
+        Person(money=6).save()
+        Person(money=8).save()
+        Person(money=10).save()
+
+        self.assertEqual(2, Person.objects(money__gt=Decimal("7")).count())
+        self.assertEqual(2, Person.objects(money__gt=7).count())
+        self.assertEqual(2, Person.objects(money__gt="7").count())
+
+    def test_decimal_storage(self):
+        class Person(Document):
+            float_value = DecimalField(precision=4)
+            string_value = DecimalField(precision=4, force_string=True)
+
+        Person.drop_collection()
+        values_to_store = [10, 10.1, 10.11, "10.111", Decimal("10.1111"), Decimal("10.11111")]
+        for store_at_creation in [True, False]:
+            for value in values_to_store:
+                # to_python is called explicitly if values were sent in the kwargs of __init__
+                if store_at_creation:
+                    Person(float_value=value, string_value=value).save()
+                else:
+                    person = Person.objects.create()
+                    person.float_value = value
+                    person.string_value = value
+                    person.save()
+
+        # How its stored
+        expected = [
+            {'float_value': 10.0, 'string_value': '10.0000'},
+            {'float_value': 10.1, 'string_value': '10.1000'},
+            {'float_value': 10.11, 'string_value': '10.1100'},
+            {'float_value': 10.111, 'string_value': '10.1110'},
+            {'float_value': 10.1111, 'string_value': '10.1111'},
+            {'float_value': 10.1111, 'string_value': '10.1111'}]
+        expected.extend(expected)
+        actual = list(Person.objects.exclude('id').as_pymongo())
+        self.assertEqual(expected, actual)
+
+        # How it comes out locally
+        expected = [Decimal('10.0000'), Decimal('10.1000'), Decimal('10.1100'),
+                    Decimal('10.1110'), Decimal('10.1111'), Decimal('10.1111')]
+        expected.extend(expected)
+        for field_name in ['float_value', 'string_value']:
+            actual = list(Person.objects().scalar(field_name))
+            self.assertEqual(expected, actual)
+
+    def test_boolean_validation(self):
+        """Ensure that invalid values cannot be assigned to boolean
+        fields.
+        """
+        class Person(Document):
+            admin = BooleanField()
+
+        person = Person()
+        person.admin = True
+        person.validate()
+
+        person.admin = 2
+        self.assertRaises(ValidationError, person.validate)
+        person.admin = 'Yes'
+        self.assertRaises(ValidationError, person.validate)
+
+    def test_uuid_field_string(self):
+        """Test UUID fields storing as String
+        """
+        class Person(Document):
+            api_key = UUIDField(binary=False)
+
+        Person.drop_collection()
+
+        uu = uuid.uuid4()
+        Person(api_key=uu).save()
+        self.assertEqual(1, Person.objects(api_key=uu).count())
+        self.assertEqual(uu, Person.objects.first().api_key)
+
+        person = Person()
+        valid = (uuid.uuid4(), uuid.uuid1())
+        for api_key in valid:
+            person.api_key = api_key
+            person.validate()
+
+        invalid = ('9d159858-549b-4975-9f98-dd2f987c113g',
+                   '9d159858-549b-4975-9f98-dd2f987c113')
+        for api_key in invalid:
+            person.api_key = api_key
+            self.assertRaises(ValidationError, person.validate)
+
+    def test_uuid_field_binary(self):
+        """Test UUID fields storing as Binary object."""
+        class Person(Document):
+            api_key = UUIDField(binary=True)
+
+        Person.drop_collection()
+
+        uu = uuid.uuid4()
+        Person(api_key=uu).save()
+        self.assertEqual(1, Person.objects(api_key=uu).count())
+        self.assertEqual(uu, Person.objects.first().api_key)
+
+        person = Person()
+        valid = (uuid.uuid4(), uuid.uuid1())
+        for api_key in valid:
+            person.api_key = api_key
+            person.validate()
+
+        invalid = ('9d159858-549b-4975-9f98-dd2f987c113g',
+                   '9d159858-549b-4975-9f98-dd2f987c113')
+        for api_key in invalid:
+            person.api_key = api_key
+            self.assertRaises(ValidationError, person.validate)
+
+    def test_datetime_validation(self):
+        """Ensure that invalid values cannot be assigned to datetime
+        fields.
+        """
+        class LogEntry(Document):
+            time = DateTimeField()
+
+        log = LogEntry()
+        log.time = datetime.datetime.now()
+        log.validate()
+
+        log.time = datetime.date.today()
+        log.validate()
+
+        log.time = datetime.datetime.now().isoformat(' ')
+        log.validate()
+
+        if dateutil:
+            log.time = datetime.datetime.now().isoformat('T')
+            log.validate()
+
+        log.time = -1
+        self.assertRaises(ValidationError, log.validate)
+        log.time = 'ABC'
+        self.assertRaises(ValidationError, log.validate)
+
+    def test_datetime_tz_aware_mark_as_changed(self):
+        from mongoengine import connection
+
+        # Reset the connections
+        connection._connection_settings = {}
+        connection._connections = {}
+        connection._dbs = {}
+
+        connect(db='mongoenginetest', tz_aware=True)
+
+        class LogEntry(Document):
+            time = DateTimeField()
+
+        LogEntry.drop_collection()
+
+        LogEntry(time=datetime.datetime(2013, 1, 1, 0, 0, 0)).save()
+
+        log = LogEntry.objects.first()
+        log.time = datetime.datetime(2013, 1, 1, 0, 0, 0)
+        self.assertEqual(['time'], log._changed_fields)
+
+    def test_datetime(self):
+        """Tests showing pymongo datetime fields handling of microseconds.
+        Microseconds are rounded to the nearest millisecond and pre UTC
+        handling is wonky.
+
+        See: http://api.mongodb.org/python/current/api/bson/son.html#dt
+        """
+        class LogEntry(Document):
+            date = DateTimeField()
+
+        LogEntry.drop_collection()
+
+        # Test can save dates
+        log = LogEntry()
+        log.date = datetime.date.today()
+        log.save()
+        log.reload()
+        self.assertEqual(log.date.date(), datetime.date.today())
+
+        # Post UTC - microseconds are rounded (down) nearest millisecond and
+        # dropped
+        d1 = datetime.datetime(1970, 1, 1, 0, 0, 1, 999)
+        d2 = datetime.datetime(1970, 1, 1, 0, 0, 1)
+        log = LogEntry()
+        log.date = d1
+        log.save()
+        log.reload()
+        self.assertNotEqual(log.date, d1)
+        self.assertEqual(log.date, d2)
+
+        # Post UTC - microseconds are rounded (down) nearest millisecond
+        d1 = datetime.datetime(1970, 1, 1, 0, 0, 1, 9999)
+        d2 = datetime.datetime(1970, 1, 1, 0, 0, 1, 9000)
+        log.date = d1
+        log.save()
+        log.reload()
+        self.assertNotEqual(log.date, d1)
+        self.assertEqual(log.date, d2)
+
+        if not six.PY3:
+            # Pre UTC dates microseconds below 1000 are dropped
+            # This does not seem to be true in PY3
+            d1 = datetime.datetime(1969, 12, 31, 23, 59, 59, 999)
+            d2 = datetime.datetime(1969, 12, 31, 23, 59, 59)
+            log.date = d1
+            log.save()
+            log.reload()
+            self.assertNotEqual(log.date, d1)
+            self.assertEqual(log.date, d2)
+
+    def test_datetime_usage(self):
+        """Tests for regular datetime fields"""
+        class LogEntry(Document):
+            date = DateTimeField()
+
+        LogEntry.drop_collection()
+
+        d1 = datetime.datetime(1970, 1, 1, 0, 0, 1)
+        log = LogEntry()
+        log.date = d1
+        log.validate()
+        log.save()
+
+        for query in (d1, d1.isoformat(' ')):
+            log1 = LogEntry.objects.get(date=query)
+            self.assertEqual(log, log1)
+
+        if dateutil:
+            log1 = LogEntry.objects.get(date=d1.isoformat('T'))
+            self.assertEqual(log, log1)
+
+        # create additional 19 log entries for a total of 20
+        for i in range(1971, 1990):
+            d = datetime.datetime(i, 1, 1, 0, 0, 1)
+            LogEntry(date=d).save()
+
+        self.assertEqual(LogEntry.objects.count(), 20)
+
+        # Test ordering
+        logs = LogEntry.objects.order_by("date")
+        i = 0
+        while i < 19:
+            self.assertTrue(logs[i].date <= logs[i + 1].date)
+            i += 1
+
+        logs = LogEntry.objects.order_by("-date")
+        i = 0
+        while i < 19:
+            self.assertTrue(logs[i].date >= logs[i + 1].date)
+            i += 1
+
+        # Test searching
+        logs = LogEntry.objects.filter(date__gte=datetime.datetime(1980, 1, 1))
+        self.assertEqual(logs.count(), 10)
+
+        logs = LogEntry.objects.filter(date__lte=datetime.datetime(1980, 1, 1))
+        self.assertEqual(logs.count(), 10)
+
+        logs = LogEntry.objects.filter(
+            date__lte=datetime.datetime(1980, 1, 1),
+            date__gte=datetime.datetime(1975, 1, 1),
+        )
+        self.assertEqual(logs.count(), 5)
+
+    def test_complexdatetime_storage(self):
+        """Tests for complex datetime fields - which can handle
+        microseconds without rounding.
+        """
+        class LogEntry(Document):
+            date = ComplexDateTimeField()
+            date_with_dots = ComplexDateTimeField(separator='.')
+
+        LogEntry.drop_collection()
+
+        # Post UTC - microseconds are rounded (down) nearest millisecond and
+        # dropped - with default datetimefields
+        d1 = datetime.datetime(1970, 1, 1, 0, 0, 1, 999)
+        log = LogEntry()
+        log.date = d1
+        log.save()
+        log.reload()
+        self.assertEqual(log.date, d1)
+
+        # Post UTC - microseconds are rounded (down) nearest millisecond - with
+        # default datetimefields
+        d1 = datetime.datetime(1970, 1, 1, 0, 0, 1, 9999)
+        log.date = d1
+        log.save()
+        log.reload()
+        self.assertEqual(log.date, d1)
+
+        # Pre UTC dates microseconds below 1000 are dropped - with default
+        # datetimefields
+        d1 = datetime.datetime(1969, 12, 31, 23, 59, 59, 999)
+        log.date = d1
+        log.save()
+        log.reload()
+        self.assertEqual(log.date, d1)
+
+        # Pre UTC microseconds above 1000 is wonky - with default datetimefields
+        # log.date has an invalid microsecond value so I can't construct
+        # a date to compare.
+        for i in range(1001, 3113, 33):
+            d1 = datetime.datetime(1969, 12, 31, 23, 59, 59, i)
+            log.date = d1
+            log.save()
+            log.reload()
+            self.assertEqual(log.date, d1)
+            log1 = LogEntry.objects.get(date=d1)
+            self.assertEqual(log, log1)
+
+        # Test string padding
+        microsecond = list(map(int, [math.pow(10, x) for x in range(6)]))
+        mm = dd = hh = ii = ss = [1, 10]
+
+        for values in itertools.product([2014], mm, dd, hh, ii, ss, microsecond):
+            stored = LogEntry(date=datetime.datetime(*values)).to_mongo()['date']
+            self.assertTrue(re.match('^\d{4},\d{2},\d{2},\d{2},\d{2},\d{2},\d{6}$', stored) is not None)
+
+        # Test separator
+        stored = LogEntry(date_with_dots=datetime.datetime(2014, 1, 1)).to_mongo()['date_with_dots']
+        self.assertTrue(re.match('^\d{4}.\d{2}.\d{2}.\d{2}.\d{2}.\d{2}.\d{6}$', stored) is not None)
+
+    def test_complexdatetime_usage(self):
+        """Tests for complex datetime fields - which can handle
+        microseconds without rounding.
+        """
+        class LogEntry(Document):
+            date = ComplexDateTimeField()
+
+        LogEntry.drop_collection()
+
+        d1 = datetime.datetime(1950, 1, 1, 0, 0, 1, 999)
+        log = LogEntry()
+        log.date = d1
+        log.save()
+
+        log1 = LogEntry.objects.get(date=d1)
+        self.assertEqual(log, log1)
+
+        # create extra 59 log entries for a total of 60
+        for i in range(1951, 2010):
+            d = datetime.datetime(i, 1, 1, 0, 0, 1, 999)
+            LogEntry(date=d).save()
+
+        self.assertEqual(LogEntry.objects.count(), 60)
+
+        # Test ordering
+        logs = LogEntry.objects.order_by("date")
+        i = 0
+        while i < 59:
+            self.assertTrue(logs[i].date <= logs[i + 1].date)
+            i += 1
+
+        logs = LogEntry.objects.order_by("-date")
+        i = 0
+        while i < 59:
+            self.assertTrue(logs[i].date >= logs[i + 1].date)
+            i += 1
+
+        # Test searching
+        logs = LogEntry.objects.filter(date__gte=datetime.datetime(1980, 1, 1))
+        self.assertEqual(logs.count(), 30)
+
+        logs = LogEntry.objects.filter(date__lte=datetime.datetime(1980, 1, 1))
+        self.assertEqual(logs.count(), 30)
+
+        logs = LogEntry.objects.filter(
+            date__lte=datetime.datetime(2011, 1, 1),
+            date__gte=datetime.datetime(2000, 1, 1),
+        )
+        self.assertEqual(logs.count(), 10)
+
+        LogEntry.drop_collection()
+
+        # Test microsecond-level ordering/filtering
+        for microsecond in (99, 999, 9999, 10000):
+            LogEntry(
+                date=datetime.datetime(2015, 1, 1, 0, 0, 0, microsecond)
+            ).save()
+
+        logs = list(LogEntry.objects.order_by('date'))
+        for next_idx, log in enumerate(logs[:-1], start=1):
+            next_log = logs[next_idx]
+            self.assertTrue(log.date < next_log.date)
+
+        logs = list(LogEntry.objects.order_by('-date'))
+        for next_idx, log in enumerate(logs[:-1], start=1):
+            next_log = logs[next_idx]
+            self.assertTrue(log.date > next_log.date)
+
+        logs = LogEntry.objects.filter(
+            date__lte=datetime.datetime(2015, 1, 1, 0, 0, 0, 10000))
+        self.assertEqual(logs.count(), 4)
 
     def test_list_validation(self):
         """Ensure that a list field only accepts lists with valid elements."""
@@ -1114,6 +1670,129 @@ class FieldTest(MongoDBTestCase):
         class MyDoc(EmbeddedDocument):
             name = StringField()
 
+        class Test(Document):
+            my_map = MapField(EmbeddedDocumentField(Embedded))
+
+        Test.drop_collection()
+
+        test = Test()
+        test.my_map['1'] = Embedded(name='test')
+        test.save()
+        test.my_map['1'].name = 'test updated'
+        test.save()
+
+    def test_map_field_lookup(self):
+        """Ensure MapField lookups succeed on Fields without a lookup
+        method.
+        """
+        class Action(EmbeddedDocument):
+            operation = StringField()
+            object = StringField()
+
+        class Log(Document):
+            name = StringField()
+            visited = MapField(DateTimeField())
+            actions = MapField(EmbeddedDocumentField(Action))
+
+        Log.drop_collection()
+        Log(name="wilson", visited={'friends': datetime.datetime.now()},
+            actions={'friends': Action(operation='drink', object='beer')}).save()
+
+        self.assertEqual(1, Log.objects(
+            visited__friends__exists=True).count())
+
+        self.assertEqual(1, Log.objects(
+            actions__friends__operation='drink',
+            actions__friends__object='beer').count())
+
+    def test_map_field_unicode(self):
+        class Info(EmbeddedDocument):
+            description = StringField()
+            value_list = ListField(field=StringField())
+
+        class BlogPost(Document):
+            info_dict = MapField(field=EmbeddedDocumentField(Info))
+
+        BlogPost.drop_collection()
+
+        tree = BlogPost(info_dict={
+            "éééé": {
+                'description': "VALUE: éééé"
+            }
+        })
+
+        tree.save()
+
+        self.assertEqual(
+            BlogPost.objects.get(id=tree.id).info_dict["éééé"].description,
+            "VALUE: éééé"
+        )
+
+    def test_embedded_db_field(self):
+        class Embedded(EmbeddedDocument):
+            number = IntField(default=0, db_field='i')
+
+        class Test(Document):
+            embedded = EmbeddedDocumentField(Embedded, db_field='x')
+
+        Test.drop_collection()
+
+        test = Test()
+        test.embedded = Embedded(number=1)
+        test.save()
+
+        Test.objects.update_one(inc__embedded__number=1)
+
+        test = Test.objects.get()
+        self.assertEqual(test.embedded.number, 2)
+        doc = self.db.test.find_one()
+        self.assertEqual(doc['x']['i'], 2)
+
+    def test_double_embedded_db_field(self):
+        """Make sure multiple layers of embedded docs resolve db fields
+        properly and can be initialized using dicts.
+        """
+        class C(EmbeddedDocument):
+            txt = StringField()
+
+        class B(EmbeddedDocument):
+            c = EmbeddedDocumentField(C, db_field='fc')
+
+        class A(Document):
+            b = EmbeddedDocumentField(B, db_field='fb')
+
+        a = A(
+            b=B(
+                c=C(txt='hi')
+            )
+        )
+        a.validate()
+
+        a = A(b={'c': {'txt': 'hi'}})
+        a.validate()
+
+    def test_double_embedded_db_field_from_son(self):
+        """Make sure multiple layers of embedded docs resolve db fields
+        from SON properly.
+        """
+        class C(EmbeddedDocument):
+            txt = StringField()
+
+        class B(EmbeddedDocument):
+            c = EmbeddedDocumentField(C, db_field='fc')
+
+        class A(Document):
+            b = EmbeddedDocumentField(B, db_field='fb')
+
+        a = A._from_son(SON([
+            ('fb', SON([
+                ('fc', SON([
+                    ('txt', 'hi')
+                ]))
+            ]))
+        ]))
+        self.assertEqual(a.b.c.txt, 'hi')
+
     def test_embedded_document_validation(self):
         """Ensure that invalid embedded documents cannot be assigned to
         embedded document fields.
@@ -1225,6 +1904,121 @@ class FieldTest(MongoDBTestCase):
         self.assertEqual(bar.ref, expected)
         bar._fields['generic_ref']._auto_dereference = False
         self.assertEqual(bar.generic_ref, {'_ref': expected, '_cls': 'Foo'})
+
+    def test_reference_validation(self):
+        """Ensure that invalid document objects cannot be assigned to
+        reference fields.
+        """
+        class User(Document):
+            name = StringField()
+
+        class BlogPost(Document):
+            content = StringField()
+            author = ReferenceField(User)
+
+        User.drop_collection()
+        BlogPost.drop_collection()
+
+        # Make sure ReferenceField only accepts a document class or a string
+        # with a document class name.
+        self.assertRaises(ValidationError, ReferenceField, EmbeddedDocument)
+
+        user = User(name='Test User')
+
+        # Ensure that the referenced object must have been saved
+        post1 = BlogPost(content='Chips and gravy taste good.')
+        post1.author = user
+        self.assertRaises(ValidationError, post1.save)
+
+        # Check that an invalid object type cannot be used
+        post2 = BlogPost(content='Chips and chilli taste good.')
+        post1.author = post2
+        self.assertRaises(ValidationError, post1.validate)
+
+        # Ensure ObjectID's are accepted as references
+        user_object_id = user.pk
+        post3 = BlogPost(content="Chips and curry sauce taste good.")
+        post3.author = user_object_id
+        post3.save()
+
+        # Make sure referencing a saved document of the right type works
+        user.save()
+        post1.author = user
+        post1.save()
+
+        # Make sure referencing a saved document of the *wrong* type fails
+        post2.save()
+        post1.author = post2
+        self.assertRaises(ValidationError, post1.validate)
+
+    def test_objectid_reference_fields(self):
+        """Make sure storing Object ID references works."""
+        class Person(Document):
+            name = StringField()
+            parent = ReferenceField('self')
+
+        Person.drop_collection()
+
+        p1 = Person(name="John").save()
+        Person(name="Ross", parent=p1.pk).save()
+
+        p = Person.objects.get(name="Ross")
+        self.assertEqual(p.parent, p1)
+
+    def test_dbref_reference_fields(self):
+        """Make sure storing references as bson.dbref.DBRef works."""
+        class Person(Document):
+            name = StringField()
+            parent = ReferenceField('self', dbref=True)
+
+        Person.drop_collection()
+
+        p1 = Person(name="John").save()
+        Person(name="Ross", parent=p1).save()
+
+        self.assertEqual(
+            Person._get_collection().find_one({'name': 'Ross'})['parent'],
+            DBRef('person', p1.pk)
+        )
+
+        p = Person.objects.get(name="Ross")
+        self.assertEqual(p.parent, p1)
+
+    def test_dbref_to_mongo(self):
+        """Make sure that calling to_mongo on a ReferenceField which
+        has dbref=False, but actually actually contains a DBRef returns
+        an ID of that DBRef.
+        """
+        class Person(Document):
+            name = StringField()
+            parent = ReferenceField('self', dbref=False)
+
+        p = Person(
+            name='Steve',
+            parent=DBRef('person', 'abcdefghijklmnop')
+        )
+        self.assertEqual(p.to_mongo(), SON([
+            ('name', 'Steve'),
+            ('parent', 'abcdefghijklmnop')
+        ]))
+
+    def test_objectid_reference_fields(self):
+
+        class Person(Document):
+            name = StringField()
+            parent = ReferenceField('self', dbref=False)
+
+        Person.drop_collection()
+
+        p1 = Person(name="John").save()
+        Person(name="Ross", parent=p1).save()
+
+        col = Person._get_collection()
+        data = col.find_one({'name': 'Ross'})
+        self.assertEqual(data['parent'], p1.pk)
+
+        p = Person.objects.get(name="Ross")
+        self.assertEqual(p.parent, p1)
 
     def test_list_item_dereference(self):
         """Ensure that DBRef items in ListFields are dereferenced.
@@ -1373,7 +2167,7 @@ class FieldTest(MongoDBTestCase):
         brother = Brother(name="Bob", sibling=sister)
         brother.save()
 
-        self.assertEquals(Brother.objects[0].sibling.name, sister.name)
+        self.assertEqual(Brother.objects[0].sibling.name, sister.name)
 
     def test_reference_abstract_class(self):
         """Ensure that an abstract class instance cannot be used in the
@@ -1931,6 +2725,284 @@ class FieldTest(MongoDBTestCase):
         """
         SIZES = ('S', 'M', 'L', 'XL', 'XXL')
         COLORS = (('R', 'Red'), ('B', 'Blue'))
+        SIZE_MESSAGE = "Value must be one of ('S', 'M', 'L', 'XL', 'XXL')"
+        COLOR_MESSAGE = "Value must be one of ['R', 'B']"
+
+        class Shirt(Document):
+            size = StringField(max_length=3, choices=SIZES)
+            color = StringField(max_length=1, choices=COLORS)
+
+        Shirt.drop_collection()
+
+        shirt = Shirt()
+        shirt.validate()
+
+        shirt.size = "S"
+        shirt.color = "R"
+        shirt.validate()
+
+        shirt.size = "XS"
+        shirt.color = "G"
+
+        try:
+            shirt.validate()
+        except ValidationError as error:
+            # get the validation rules
+            error_dict = error.to_dict()
+            self.assertEqual(error_dict['size'], SIZE_MESSAGE)
+            self.assertEqual(error_dict['color'], COLOR_MESSAGE)
+
+    def test_ensure_unique_default_instances(self):
+        """Ensure that every field has it's own unique default instance."""
+        class D(Document):
+            data = DictField()
+            data2 = DictField(default=lambda: {})
+
+        d1 = D()
+        d1.data['foo'] = 'bar'
+        d1.data2['foo'] = 'bar'
+        d2 = D()
+        self.assertEqual(d2.data, {})
+        self.assertEqual(d2.data2, {})
+
+    def test_sequence_field(self):
+        class Person(Document):
+            id = SequenceField(primary_key=True)
+            name = StringField()
+
+        self.db['mongoengine.counters'].drop()
+        Person.drop_collection()
+
+        for x in range(10):
+            Person(name="Person %s" % x).save()
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
+        self.assertEqual(c['next'], 10)
+
+        ids = [i.id for i in Person.objects]
+        self.assertEqual(ids, list(range(1, 11)))
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
+        self.assertEqual(c['next'], 10)
+
+        Person.id.set_next_value(1000)
+        c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
+        self.assertEqual(c['next'], 1000)
+
+    def test_sequence_field_get_next_value(self):
+        class Person(Document):
+            id = SequenceField(primary_key=True)
+            name = StringField()
+
+        self.db['mongoengine.counters'].drop()
+        Person.drop_collection()
+
+        for x in range(10):
+            Person(name="Person %s" % x).save()
+
+        self.assertEqual(Person.id.get_next_value(), 11)
+        self.db['mongoengine.counters'].drop()
+
+        self.assertEqual(Person.id.get_next_value(), 1)
+
+        class Person(Document):
+            id = SequenceField(primary_key=True, value_decorator=str)
+            name = StringField()
+
+        self.db['mongoengine.counters'].drop()
+        Person.drop_collection()
+
+        for x in range(10):
+            Person(name="Person %s" % x).save()
+
+        self.assertEqual(Person.id.get_next_value(), '11')
+        self.db['mongoengine.counters'].drop()
+
+        self.assertEqual(Person.id.get_next_value(), '1')
+
+    def test_sequence_field_sequence_name(self):
+        class Person(Document):
+            id = SequenceField(primary_key=True, sequence_name='jelly')
+            name = StringField()
+
+        self.db['mongoengine.counters'].drop()
+        Person.drop_collection()
+
+        for x in range(10):
+            Person(name="Person %s" % x).save()
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'jelly.id'})
+        self.assertEqual(c['next'], 10)
+
+        ids = [i.id for i in Person.objects]
+        self.assertEqual(ids, list(range(1, 11)))
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'jelly.id'})
+        self.assertEqual(c['next'], 10)
+
+        Person.id.set_next_value(1000)
+        c = self.db['mongoengine.counters'].find_one({'_id': 'jelly.id'})
+        self.assertEqual(c['next'], 1000)
+
+    def test_multiple_sequence_fields(self):
+        class Person(Document):
+            id = SequenceField(primary_key=True)
+            counter = SequenceField()
+            name = StringField()
+
+        self.db['mongoengine.counters'].drop()
+        Person.drop_collection()
+
+        for x in range(10):
+            Person(name="Person %s" % x).save()
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
+        self.assertEqual(c['next'], 10)
+
+        ids = [i.id for i in Person.objects]
+        self.assertEqual(ids, list(range(1, 11)))
+
+        counters = [i.counter for i in Person.objects]
+        self.assertEqual(counters, list(range(1, 11)))
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
+        self.assertEqual(c['next'], 10)
+
+        Person.id.set_next_value(1000)
+        c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
+        self.assertEqual(c['next'], 1000)
+
+        Person.counter.set_next_value(999)
+        c = self.db['mongoengine.counters'].find_one({'_id': 'person.counter'})
+        self.assertEqual(c['next'], 999)
+
+    def test_sequence_fields_reload(self):
+        class Animal(Document):
+            counter = SequenceField()
+            name = StringField()
+
+        self.db['mongoengine.counters'].drop()
+        Animal.drop_collection()
+
+        a = Animal(name="Boi").save()
+
+        self.assertEqual(a.counter, 1)
+        a.reload()
+        self.assertEqual(a.counter, 1)
+
+        a.counter = None
+        self.assertEqual(a.counter, 2)
+        a.save()
+
+        self.assertEqual(a.counter, 2)
+
+        a = Animal.objects.first()
+        self.assertEqual(a.counter, 2)
+        a.reload()
+        self.assertEqual(a.counter, 2)
+
+    def test_multiple_sequence_fields_on_docs(self):
+        class Animal(Document):
+            id = SequenceField(primary_key=True)
+            name = StringField()
+
+        class Person(Document):
+            id = SequenceField(primary_key=True)
+            name = StringField()
+
+        self.db['mongoengine.counters'].drop()
+        Animal.drop_collection()
+        Person.drop_collection()
+
+        for x in range(10):
+            Animal(name="Animal %s" % x).save()
+            Person(name="Person %s" % x).save()
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
+        self.assertEqual(c['next'], 10)
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'animal.id'})
+        self.assertEqual(c['next'], 10)
+
+        ids = [i.id for i in Person.objects]
+        self.assertEqual(ids, list(range(1, 11)))
+
+        id = [i.id for i in Animal.objects]
+        self.assertEqual(id, list(range(1, 11)))
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
+        self.assertEqual(c['next'], 10)
+
+        c = self.db['mongoengine.counters'].find_one({'_id': 'animal.id'})
+        self.assertEqual(c['next'], 10)
+
+    def test_sequence_field_value_decorator(self):
+        class Person(Document):
+            id = SequenceField(primary_key=True, value_decorator=str)
+            name = StringField()
+
+        self.db['mongoengine.counters'].drop()
+        Person.drop_collection()
+
+        for x in range(10):
+            p = Person(name="Person %s" % x)
+            p.save()
+
+    def test_simple_choices_validation(self):
+        """Ensure that value is in a container of allowed values.
+        """
+        class Shirt(Document):
+            size = StringField(max_length=3,
+                               choices=('S', 'M', 'L', 'XL', 'XXL'))
+
+        # Shirt.drop_collection()
+        ids = [i.id for i in Person.objects]
+        self.assertEqual(ids, list(map(str, list(range(1, 11)))))
+
+        shirt = Shirt()
+        shirt.validate()
+
+        shirt.size = "S"
+        shirt.validate()
+
+        shirt.size = "XS"
+        self.assertRaises(ValidationError, shirt.validate)
+
+    def test_simple_choices_get_field_display(self):
+        """Test dynamic helper for returning the display value of a choices
+        field.
+        """
+        class Shirt(Document):
+            size = StringField(max_length=3,
+                               choices=('S', 'M', 'L', 'XL', 'XXL'))
+            style = StringField(max_length=3,
+                                choices=('Small', 'Baggy', 'wide'),
+                                default='Small')
+
+        Shirt.drop_collection()
+
+        shirt = Shirt()
+
+        self.assertEqual(shirt.get_size_display(), None)
+        self.assertEqual(shirt.get_style_display(), 'Small')
+
+        shirt.size = "XXL"
+        shirt.style = "Baggy"
+        self.assertEqual(shirt.get_size_display(), 'XXL')
+        self.assertEqual(shirt.get_style_display(), 'Baggy')
+
+        # Set as Z - an invalid choice
+        shirt.size = "Z"
+        shirt.style = "Z"
+        self.assertEqual(shirt.get_size_display(), 'Z')
+        self.assertEqual(shirt.get_style_display(), 'Z')
+        self.assertRaises(ValidationError, shirt.validate)
+
+    def test_simple_choices_validation_invalid_value(self):
+        """Ensure that error messages are correct.
+        """
+        SIZES = ('S', 'M', 'L', 'XL', 'XXL')
+        COLORS = (('R', 'Red'), ('B', 'Blue'))
         SIZE_MESSAGE = u"Value must be one of ('S', 'M', 'L', 'XL', 'XXL')"
         COLOR_MESSAGE = u"Value must be one of ['R', 'B']"
 
@@ -2073,10 +3145,121 @@ class FieldTest(MongoDBTestCase):
             self.assertIn(1, error_dict['comments'])
             self.assertIn('content', error_dict['comments'][1])
             self.assertEqual(error_dict['comments'][1]['content'],
-                             u'Field is required')
+                             'Field is required')
 
         post.comments[1].content = 'here we go'
         post.validate()
+
+    def test_email_field(self):
+        class User(Document):
+            email = EmailField()
+
+        user = User(email='ross@example.com')
+        user.validate()
+
+        user = User(email='ross@example.co.uk')
+        user.validate()
+
+        user = User(email=('Kofq@rhom0e4klgauOhpbpNdogawnyIKvQS0wk2mjqrgGQ5S'
+                           'aJIazqqWkm7.net'))
+        user.validate()
+
+        user = User(email='new-tld@example.technology')
+        user.validate()
+
+        user = User(email='ross@example.com.')
+        self.assertRaises(ValidationError, user.validate)
+
+        # unicode domain
+        user = User(email='user@пример.рф')
+        user.validate()
+
+        # invalid unicode domain
+        user = User(email='user@пример')
+        self.assertRaises(ValidationError, user.validate)
+
+        # invalid data type
+        user = User(email=123)
+        self.assertRaises(ValidationError, user.validate)
+
+    def test_email_field_unicode_user(self):
+        # Don't run this test on pypy3, which doesn't support unicode regex:
+        # https://bitbucket.org/pypy/pypy/issues/1821/regular-expression-doesnt-find-unicode
+        if sys.version_info[:2] == (3, 2):
+            raise SkipTest('unicode email addresses are not supported on PyPy 3')
+
+        class User(Document):
+            email = EmailField()
+
+        # unicode user shouldn't validate by default...
+        user = User(email='Dörte@Sörensen.example.com')
+        self.assertRaises(ValidationError, user.validate)
+
+        # ...but it should be fine with allow_utf8_user set to True
+        class User(Document):
+            email = EmailField(allow_utf8_user=True)
+
+        user = User(email='Dörte@Sörensen.example.com')
+        user.validate()
+
+    def test_email_field_domain_whitelist(self):
+        class User(Document):
+            email = EmailField()
+
+        # localhost domain shouldn't validate by default...
+        user = User(email='me@localhost')
+        self.assertRaises(ValidationError, user.validate)
+
+        # ...but it should be fine if it's whitelisted
+        class User(Document):
+            email = EmailField(domain_whitelist=['localhost'])
+
+        user = User(email='me@localhost')
+        user.validate()
+
+    def test_email_field_ip_domain(self):
+        class User(Document):
+            email = EmailField()
+
+        valid_ipv4 = 'email@[127.0.0.1]'
+        valid_ipv6 = 'email@[2001:dB8::1]'
+        invalid_ip = 'email@[324.0.0.1]'
+
+        # IP address as a domain shouldn't validate by default...
+        user = User(email=valid_ipv4)
+        self.assertRaises(ValidationError, user.validate)
+
+        user = User(email=valid_ipv6)
+        self.assertRaises(ValidationError, user.validate)
+
+        user = User(email=invalid_ip)
+        self.assertRaises(ValidationError, user.validate)
+
+        # ...but it should be fine with allow_ip_domain set to True
+        class User(Document):
+            email = EmailField(allow_ip_domain=True)
+
+        user = User(email=valid_ipv4)
+        user.validate()
+
+        user = User(email=valid_ipv6)
+        user.validate()
+
+        # invalid IP should still fail validation
+        user = User(email=invalid_ip)
+        self.assertRaises(ValidationError, user.validate)
+
+    def test_email_field_honors_regex(self):
+        class User(Document):
+            email = EmailField(regex=r'\w+@example.com')
+
+        # Fails regex validation
+        user = User(email='me@foo.com')
+        self.assertRaises(ValidationError, user.validate)
+
+        # Passes regex validation
+        user = User(email='me@example.com')
+        self.assertTrue(user.validate() is None)
 
     def test_tuples_as_tuples(self):
         """Ensure that tuples remain tuples when they are inside
@@ -2198,8 +3381,8 @@ class FieldTest(MongoDBTestCase):
         Dog().save()
         Fish().save()
         Human().save()
-        self.assertEquals(Animal.objects(_cls__in=["Animal.Mammal.Dog", "Animal.Fish"]).count(), 2)
-        self.assertEquals(Animal.objects(_cls__in=["Animal.Fish.Guppy"]).count(), 0)
+        self.assertEqual(Animal.objects(_cls__in=["Animal.Mammal.Dog", "Animal.Fish"]).count(), 2)
+        self.assertEqual(Animal.objects(_cls__in=["Animal.Fish.Guppy"]).count(), 0)
 
     def test_sparse_field(self):
         class Doc(Document):
@@ -2585,10 +3768,10 @@ class EmbeddedDocumentListFieldTestCase(MongoDBTestCase):
         Tests that unicode strings handled correctly
         """
         post = self.BlogPost(comments=[
-            self.Comments(author='user1', message=u'сообщение'),
-            self.Comments(author='user2', message=u'хабарлама')
+            self.Comments(author='user1', message='сообщение'),
+            self.Comments(author='user2', message='хабарлама')
         ]).save()
-        self.assertEqual(post.comments.get(message=u'сообщение').author,
+        self.assertEqual(post.comments.get(message='сообщение').author,
                          'user1')
 
     def test_save(self):
@@ -2702,9 +3885,260 @@ class EmbeddedDocumentListFieldTestCase(MongoDBTestCase):
         self.assertEqual(custom_data['a'], CustomData.c_field.custom_data['a'])
 
 
-class TestEmbeddedDocumentField(MongoDBTestCase):
-    def test___init___(self):
-        class MyDoc(EmbeddedDocument):
+# class TestEmbeddedDocumentField(MongoDBTestCase):
+#     def test___init___(self):
+#         class MyDoc(EmbeddedDocument):
+class CachedReferenceFieldTest(MongoDBTestCase):
+
+    def test_cached_reference_field_get_and_save(self):
+        """
+        Tests #1047: CachedReferenceField creates DBRefs on to_python,
+        but can't save them on to_mongo.
+        """
+        class Animal(Document):
+            name = StringField()
+            tag = StringField()
+
+        class Ocorrence(Document):
+            person = StringField()
+            animal = CachedReferenceField(Animal)
+
+        Animal.drop_collection()
+        Ocorrence.drop_collection()
+
+        Ocorrence(person="testte",
+                  animal=Animal(name="Leopard", tag="heavy").save()).save()
+        p = Ocorrence.objects.get()
+        p.person = 'new_testte'
+        p.save()
+
+    def test_cached_reference_fields(self):
+        class Animal(Document):
+            name = StringField()
+            tag = StringField()
+
+        class Ocorrence(Document):
+            person = StringField()
+            animal = CachedReferenceField(
+                Animal, fields=['tag'])
+
+        Animal.drop_collection()
+        Ocorrence.drop_collection()
+
+        a = Animal(name="Leopard", tag="heavy")
+        a.save()
+
+        self.assertEqual(Animal._cached_reference_fields, [Ocorrence.animal])
+        o = Ocorrence(person="teste", animal=a)
+        o.save()
+
+        p = Ocorrence(person="Wilson")
+        p.save()
+
+        self.assertEqual(Ocorrence.objects(animal=None).count(), 1)
+
+        self.assertEqual(
+            a.to_mongo(fields=['tag']), {'tag': 'heavy', "_id": a.pk})
+
+        self.assertEqual(o.to_mongo()['animal']['tag'], 'heavy')
+
+        # counts
+        Ocorrence(person="teste 2").save()
+        Ocorrence(person="teste 3").save()
+
+        count = Ocorrence.objects(animal__tag='heavy').count()
+        self.assertEqual(count, 1)
+
+        ocorrence = Ocorrence.objects(animal__tag='heavy').first()
+        self.assertEqual(ocorrence.person, "teste")
+        self.assertTrue(isinstance(ocorrence.animal, Animal))
+
+    def test_cached_reference_field_decimal(self):
+        class PersonAuto(Document):
+            name = StringField()
+            salary = DecimalField()
+
+        class SocialTest(Document):
+            group = StringField()
+            person = CachedReferenceField(
+                PersonAuto,
+                fields=('salary',))
+
+        PersonAuto.drop_collection()
+        SocialTest.drop_collection()
+
+        p = PersonAuto(name="Alberto", salary=Decimal('7000.00'))
+        p.save()
+
+        s = SocialTest(group="dev", person=p)
+        s.save()
+
+        self.assertEqual(
+            SocialTest.objects._collection.find_one({'person.salary': 7000.00}), {
+                '_id': s.pk,
+                'group': s.group,
+                'person': {
+                    '_id': p.pk,
+                    'salary': 7000.00
+                }
+            })
+
+    def test_cached_reference_field_reference(self):
+        class Group(Document):
+            name = StringField()
+
+        class Person(Document):
+            name = StringField()
+            group = ReferenceField(Group)
+
+        class SocialData(Document):
+            obs = StringField()
+            tags = ListField(
+                StringField())
+            person = CachedReferenceField(
+                Person,
+                fields=('group',))
+
+        Group.drop_collection()
+        Person.drop_collection()
+        SocialData.drop_collection()
+
+        g1 = Group(name='dev')
+        g1.save()
+
+        g2 = Group(name="designers")
+        g2.save()
+
+        p1 = Person(name="Alberto", group=g1)
+        p1.save()
+
+        p2 = Person(name="Andre", group=g1)
+        p2.save()
+
+        p3 = Person(name="Afro design", group=g2)
+        p3.save()
+
+        s1 = SocialData(obs="testing 123", person=p1, tags=['tag1', 'tag2'])
+        s1.save()
+
+        s2 = SocialData(obs="testing 321", person=p3, tags=['tag3', 'tag4'])
+        s2.save()
+
+        self.assertEqual(SocialData.objects._collection.find_one(
+            {'tags': 'tag2'}), {
+                '_id': s1.pk,
+                'obs': 'testing 123',
+                'tags': ['tag1', 'tag2'],
+                'person': {
+                    '_id': p1.pk,
+                    'group': g1.pk
+                }
+        })
+
+        self.assertEqual(SocialData.objects(person__group=g2).count(), 1)
+        self.assertEqual(SocialData.objects(person__group=g2).first(), s2)
+
+    def test_cached_reference_field_update_all(self):
+        class Person(Document):
+            TYPES = (
+                ('pf', "PF"),
+                ('pj', "PJ")
+            )
+            name = StringField()
+            tp = StringField(
+                choices=TYPES
+            )
+
+            father = CachedReferenceField('self', fields=('tp',))
+
+        Person.drop_collection()
+
+        a1 = Person(name="Wilson Father", tp="pj")
+        a1.save()
+
+        a2 = Person(name='Wilson Junior', tp='pf', father=a1)
+        a2.save()
+
+        self.assertEqual(dict(a2.to_mongo()), {
+            "_id": a2.pk,
+            "name": "Wilson Junior",
+            "tp": "pf",
+            "father": {
+                "_id": a1.pk,
+                "tp": "pj"
+            }
+        })
+
+        self.assertEqual(Person.objects(father=a1)._query, {
+            'father._id': a1.pk
+        })
+        self.assertEqual(Person.objects(father=a1).count(), 1)
+
+        Person.objects.update(set__tp="pf")
+        Person.father.sync_all()
+
+        a2.reload()
+        self.assertEqual(dict(a2.to_mongo()), {
+            "_id": a2.pk,
+            "name": "Wilson Junior",
+            "tp": "pf",
+            "father": {
+                "_id": a1.pk,
+                "tp": "pf"
+            }
+        })
+
+    def test_cached_reference_fields_on_embedded_documents(self):
+        with self.assertRaises(InvalidDocumentError):
+            class Test(Document):
+                name = StringField()
+
+            type('WrongEmbeddedDocument', (
+                EmbeddedDocument,), {
+                    'test': CachedReferenceField(Test)
+            })
+
+    def test_cached_reference_auto_sync(self):
+        class Person(Document):
+            TYPES = (
+                ('pf', "PF"),
+                ('pj', "PJ")
+            )
+            name = StringField()
+            tp = StringField(
+                choices=TYPES
+            )
+
+            father = CachedReferenceField('self', fields=('tp',))
+
+        Person.drop_collection()
+
+        a1 = Person(name="Wilson Father", tp="pj")
+        a1.save()
+
+        a2 = Person(name='Wilson Junior', tp='pf', father=a1)
+        a2.save()
+
+        a1.tp = 'pf'
+        a1.save()
+
+        a2.reload()
+        self.assertEqual(dict(a2.to_mongo()), {
+            '_id': a2.pk,
+            'name': 'Wilson Junior',
+            'tp': 'pf',
+            'father': {
+                '_id': a1.pk,
+                'tp': 'pf'
+            }
+        })
+
+    def test_cached_reference_auto_sync_disabled(self):
+        class Persone(Document):
+            TYPES = (
+                ('pf', "PF"),
+                ('pj', "PJ")
+            )
             name = StringField()
 
         field = EmbeddedDocumentField(MyDoc)
