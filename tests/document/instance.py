@@ -173,7 +173,7 @@ class InstanceTest(unittest.TestCase):
             def __unicode__(self):
                 return self.title
 
-        doc = Article(title=u'привет мир')
+        doc = Article(title='привет мир')
 
         self.assertEqual('<Article: привет мир>', repr(doc))
 
@@ -185,7 +185,7 @@ class InstanceTest(unittest.TestCase):
             def __str__(self):
                 return None
 
-        doc = Article(title=u'привет мир')
+        doc = Article(title='привет мир')
         self.assertEqual('<Article: None>', repr(doc))
 
     def test_queryset_resurrects_dropped_collection(self):
@@ -596,10 +596,10 @@ class InstanceTest(unittest.TestCase):
         class Employee(Person):
             salary = IntField()
 
-        self.assertEqual(Person(name="Bob", age=35).to_mongo().keys(),
+        self.assertEqual(list(Person(name="Bob", age=35).to_mongo().keys()),
                          ['_cls', 'name', 'age'])
         self.assertEqual(
-            Employee(name="Bob", age=35, salary=0).to_mongo().keys(),
+            list(Employee(name="Bob", age=35, salary=0).to_mongo().keys()),
             ['_cls', 'name', 'age', 'salary'])
 
     def test_embedded_document_to_mongo_id(self):
@@ -607,7 +607,7 @@ class InstanceTest(unittest.TestCase):
             id = StringField(required=True)
 
         sub_doc = SubDoc(id="abc")
-        self.assertEqual(sub_doc.to_mongo().keys(), ['id'])
+        self.assertEqual(list(sub_doc.to_mongo().keys()), ['id'])
 
     def test_embedded_document(self):
         """Ensure that embedded documents are set up correctly."""
@@ -2275,14 +2275,14 @@ class InstanceTest(unittest.TestCase):
         self.assertEqual(resurrected, pickle_doc)
         self.assertEqual(resurrected._fields_ordered,
                          pickle_doc._fields_ordered)
-        self.assertEqual(resurrected._dynamic_fields.keys(),
-                         pickle_doc._dynamic_fields.keys())
+        self.assertEqual(list(resurrected._dynamic_fields.keys()),
+                         list(pickle_doc._dynamic_fields.keys()))
 
         self.assertEqual(resurrected.embedded, pickle_doc.embedded)
         self.assertEqual(resurrected.embedded._fields_ordered,
                          pickle_doc.embedded._fields_ordered)
-        self.assertEqual(resurrected.embedded._dynamic_fields.keys(),
-                         pickle_doc.embedded._dynamic_fields.keys())
+        self.assertEqual(list(resurrected.embedded._dynamic_fields.keys()),
+                         list(pickle_doc.embedded._dynamic_fields.keys()))
 
     def test_picklable_on_signals(self):
         pickle_doc = PickleSignalsTest(
@@ -2557,7 +2557,7 @@ class InstanceTest(unittest.TestCase):
                                    ]), "1")
 
         # $Where
-        self.assertEqual(u",".join([str(b) for b in Book.objects.filter(
+        self.assertEqual(",".join([str(b) for b in Book.objects.filter(
                                     __raw__={
                                         "$where": """
                                             function(){
@@ -2906,7 +2906,7 @@ class InstanceTest(unittest.TestCase):
         Person(name="Harry Potter").save()
 
         person = Person.objects.first()
-        self.assertTrue('id' in person._data.keys())
+        self.assertTrue('id' in list(person._data.keys()))
         self.assertEqual(person._data.get('id'), person.id)
 
     def test_complex_nesting_document_and_embedded_document(self):
@@ -2924,7 +2924,7 @@ class InstanceTest(unittest.TestCase):
 
             def expand(self):
                 self.flattened_parameter = {}
-                for parameter_name, parameter in self.parameters.iteritems():
+                for parameter_name, parameter in self.parameters.items():
                     parameter.expand()
 
         class NodesSystem(Document):
@@ -2932,7 +2932,7 @@ class InstanceTest(unittest.TestCase):
             nodes = MapField(ReferenceField(Node, dbref=False))
 
             def save(self, *args, **kwargs):
-                for node_name, node in self.nodes.iteritems():
+                for node_name, node in self.nodes.items():
                     node.expand()
                     node.save(*args, **kwargs)
                 super(NodesSystem, self).save(*args, **kwargs)
@@ -3042,7 +3042,7 @@ class InstanceTest(unittest.TestCase):
         p2.name = 'alon2'
         p2.save()
         p3 = Person.objects().only('created_on')[0]
-        self.assertEquals(orig_created_on, p3.created_on)
+        self.assertEqual(orig_created_on, p3.created_on)
 
         class Person(Document):
             created_on = DateTimeField(default=lambda: datetime.utcnow())
@@ -3051,10 +3051,10 @@ class InstanceTest(unittest.TestCase):
 
         p4 = Person.objects()[0]
         p4.save()
-        self.assertEquals(p4.height, 189)
+        self.assertEqual(p4.height, 189)
 
         # However the default will not be fixed in DB
-        self.assertEquals(Person.objects(height=189).count(), 0)
+        self.assertEqual(Person.objects(height=189).count(), 0)
 
         # alter DB for the new default
         coll = Person._get_collection()
@@ -3063,17 +3063,17 @@ class InstanceTest(unittest.TestCase):
                 person['height'] = 189
                 coll.save(person)
 
-        self.assertEquals(Person.objects(height=189).count(), 1)
+        self.assertEqual(Person.objects(height=189).count(), 1)
 
     def test_from_son(self):
         # 771
         class MyPerson(self.Person):
             meta = dict(shard_key=["id"])
         p = MyPerson.from_json('{"name": "name", "age": 27}', created=True)
-        self.assertEquals(p.id, None)
+        self.assertEqual(p.id, None)
         p.id = "12345"  # in case it is not working: "OperationError: Shard Keys are immutable..." will be raised here
         p = MyPerson._from_son({"name": "name", "age": 27}, created=True)
-        self.assertEquals(p.id, None)
+        self.assertEqual(p.id, None)
         p.id = "12345"  # in case it is not working: "OperationError: Shard Keys are immutable..." will be raised here
 
     def test_null_field(self):
@@ -3093,7 +3093,7 @@ class InstanceTest(unittest.TestCase):
         u_from_db = User.objects.get(name='user')
         u_from_db.height = None
         u_from_db.save()
-        self.assertEquals(u_from_db.height, None)
+        self.assertEqual(u_from_db.height, None)
         # 864
         self.assertEqual(u_from_db.str_fld, None)
         self.assertEqual(u_from_db.int_fld, None)
@@ -3107,7 +3107,7 @@ class InstanceTest(unittest.TestCase):
         u.save()
         User.objects(name='user').update_one(set__height=None, upsert=True)
         u_from_db = User.objects.get(name='user')
-        self.assertEquals(u_from_db.height, None)
+        self.assertEqual(u_from_db.height, None)
 
     def test_not_saved_eq(self):
         """Ensure we can compare documents not saved.

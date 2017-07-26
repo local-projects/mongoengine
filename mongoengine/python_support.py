@@ -18,8 +18,8 @@ StringIO = six.BytesIO
 # Additionally for Py2, try to use the faster cStringIO, if available
 if not six.PY3:
     try:
-        import cStringIO
+        import io
     except ImportError:
         pass
     else:
-        StringIO = cStringIO.StringIO
+        StringIO = io.StringIO

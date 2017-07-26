@@ -180,9 +180,9 @@ class InheritanceTest(unittest.TestCase):
 
         self.assertEqual(['_cls', 'age', 'id', 'name', 'salary'],
                          sorted(Employee._fields.keys()))
-        self.assertEqual(Person(name="Bob", age=35).to_mongo().keys(),
+        self.assertEqual(list(Person(name="Bob", age=35).to_mongo().keys()),
                          ['_cls', 'name', 'age'])
-        self.assertEqual(Employee(name="Bob", age=35, salary=0).to_mongo().keys(),
+        self.assertEqual(list(Employee(name="Bob", age=35, salary=0).to_mongo().keys()),
                          ['_cls', 'name', 'age', 'salary'])
         self.assertEqual(Employee._get_collection_name(),
                          Person._get_collection_name())
@@ -218,8 +218,8 @@ class InheritanceTest(unittest.TestCase):
         C.ensure_indexes()
 
         self.assertEqual(
-            sorted([idx['key'] for idx in C._get_collection().index_information().values()]),
-            sorted([[(u'_cls', 1), (u'b', 1)], [(u'_id', 1)], [(u'_cls', 1), (u'a', 1)]])
+            sorted([idx['key'] for idx in list(C._get_collection().index_information().values())]),
+            sorted([[('_cls', 1), ('b', 1)], [('_id', 1)], [('_cls', 1), ('a', 1)]])
         )
 
     def test_polymorphic_queries(self):
@@ -264,7 +264,7 @@ class InheritanceTest(unittest.TestCase):
 
         # Check that _cls etc aren't present on simple documents
         dog = Animal(name='dog').save()
-        self.assertEqual(dog.to_mongo().keys(), ['_id', 'name'])
+        self.assertEqual(list(dog.to_mongo().keys()), ['_id', 'name'])
 
         collection = self.db[Animal._get_collection_name()]
         obj = collection.find_one()
@@ -430,7 +430,7 @@ class InheritanceTest(unittest.TestCase):
             meta = {'abstract': True}
         class Human(Mammal): pass
 
-        for k, v in defaults.iteritems():
+        for k, v in defaults.items():
             for cls in [Animal, Fish, Guppy]:
                 self.assertEqual(cls._meta[k], v)
 

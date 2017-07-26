@@ -322,11 +322,11 @@ class ComplexBaseField(BaseField):
         if self.field:
             self.field._auto_dereference = self._auto_dereference
             value_dict = {key: self.field.to_python(item)
-                          for key, item in value.items()}
+                          for key, item in list(value.items())}
         else:
             Document = _import_class('Document')
             value_dict = {}
-            for k, v in value.items():
+            for k, v in list(value.items()):
                 if isinstance(v, Document):
                     # We need the id from the saved object to create the DBRef
                     if v.pk is None:
@@ -340,7 +340,7 @@ class ComplexBaseField(BaseField):
                     value_dict[k] = self.to_python(v)
 
         if is_list:  # Convert back to a list
-            return [v for _, v in sorted(value_dict.items(),
+            return [v for _, v in sorted(list(value_dict.items()),
                                          key=operator.itemgetter(0))]
         return value_dict
 
@@ -374,11 +374,11 @@ class ComplexBaseField(BaseField):
         if self.field:
             value_dict = {
                 key: self.field._to_mongo_safe_call(item, use_db_field, fields)
-                for key, item in value.iteritems()
+                for key, item in value.items()
             }
         else:
             value_dict = {}
-            for k, v in value.iteritems():
+            for k, v in value.items():
                 if isinstance(v, Document):
                     # We need the id from the saved object to create the DBRef
                     if v.pk is None:
@@ -406,7 +406,7 @@ class ComplexBaseField(BaseField):
                     value_dict[k] = self.to_mongo(v, use_db_field, fields)
 
         if is_list:  # Convert back to a list
-            return [v for _, v in sorted(value_dict.items(),
+            return [v for _, v in sorted(list(value_dict.items()),
                                          key=operator.itemgetter(0))]
         return value_dict
 
@@ -415,7 +415,7 @@ class ComplexBaseField(BaseField):
         errors = {}
         if self.field:
             if hasattr(value, 'iteritems') or hasattr(value, 'items'):
-                sequence = value.iteritems()
+                sequence = iter(value.items())
             else:
                 sequence = enumerate(value)
             for k, v in sequence:

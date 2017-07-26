@@ -127,7 +127,7 @@ class BaseList(list):
         return value
 
     def __iter__(self):
-        for i in xrange(self.__len__()):
+        for i in range(self.__len__()):
             yield self[i]
 
     def __setitem__(self, key, value, *args, **kwargs):
@@ -211,7 +211,7 @@ class EmbeddedDocumentList(BaseList):
         """Return True if a given embedded doc matches all the filter
         kwargs. If it doesn't return False.
         """
-        for key, expected_value in kwargs.items():
+        for key, expected_value in list(kwargs.items()):
             doc_val = getattr(embedded_doc, key)
             if doc_val != expected_value and six.text_type(doc_val) != expected_value:
                 return False
@@ -364,7 +364,7 @@ class EmbeddedDocumentList(BaseList):
             return 0
         values = list(self)
         for item in values:
-            for k, v in update.items():
+            for k, v in list(update.items()):
                 setattr(item, k, v)
 
         return len(values)
@@ -376,7 +376,7 @@ class StrictDict(object):
     _classes = {}
 
     def __init__(self, **kwargs):
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             setattr(self, k, v)
 
     def __getitem__(self, key):
@@ -424,13 +424,13 @@ class StrictDict(object):
         return (key for key in self.__slots__ if hasattr(self, key))
 
     def __len__(self):
-        return len(list(self.iteritems()))
+        return len(list(self.items()))
 
     def __eq__(self, other):
-        return self.items() == other.items()
+        return list(self.items()) == list(other.items())
 
     def __ne__(self, other):
-        return self.items() != other.items()
+        return list(self.items()) != list(other.items())
 
     @classmethod
     def create(cls, allowed_keys):
@@ -441,7 +441,7 @@ class StrictDict(object):
                 __slots__ = allowed_keys_tuple
 
                 def __repr__(self):
-                    return '{%s}' % ', '.join('"{0!s}": {1!r}'.format(k, v) for k, v in self.items())
+                    return '{%s}' % ', '.join('"{0!s}": {1!r}'.format(k, v) for k, v in list(self.items()))
 
             cls._classes[allowed_keys] = SpecificStrictDict
         return cls._classes[allowed_keys]

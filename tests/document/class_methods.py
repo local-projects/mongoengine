@@ -38,7 +38,7 @@ class ClassMethodsTest(unittest.TestCase):
                          sorted(self.Person._fields.keys()))
         self.assertEqual(["IntField", "ObjectIdField", "StringField", "StringField"],
                         sorted([x.__class__.__name__ for x in
-                                self.Person._fields.values()]))
+                                list(self.Person._fields.values())]))
 
     def test_get_db(self):
         """Ensure that get_db returns the expected db.
@@ -228,7 +228,7 @@ class ClassMethodsTest(unittest.TestCase):
         self.assertEqual(BlogPost.list_indexes(),
                          [[('_cls', 1), ('author', 1), ('tags', 1)],
                          [('_cls', 1), ('author', 1), ('tags', 1), ('extra_text', 1)],
-                         [(u'_id', 1)], [('_cls', 1)]])
+                         [('_id', 1)], [('_cls', 1)]])
 
     def test_register_delete_rule_inherited(self):
 

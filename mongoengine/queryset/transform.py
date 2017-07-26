@@ -167,7 +167,7 @@ def query(_doc_cls=None, **kwargs):
                 if ('$maxDistance' in value_dict or '$minDistance' in value_dict) and \
                         ('$near' in value_dict or '$nearSphere' in value_dict):
                     value_son = SON()
-                    for k, v in value_dict.iteritems():
+                    for k, v in value_dict.items():
                         if k == '$maxDistance' or k == '$minDistance':
                             continue
                         value_son[k] = v
@@ -196,12 +196,12 @@ def query(_doc_cls=None, **kwargs):
                 merge_query[key].append(value)
 
     # The queryset has been filter in such a way we must manually merge
-    for k, v in merge_query.items():
+    for k, v in list(merge_query.items()):
         merge_query[k].append(mongo_query[k])
         del mongo_query[k]
         if isinstance(v, list):
             value = [{k: val} for val in v]
-            if '$and' in mongo_query.keys():
+            if '$and' in list(mongo_query.keys()):
                 mongo_query['$and'].extend(value)
             else:
                 mongo_query['$and'] = value
@@ -214,7 +214,7 @@ def update(_doc_cls=None, **update):
     format.
     """
     mongo_update = {}
-    for key, value in update.items():
+    for key, value in list(update.items()):
         if key == '__raw__':
             mongo_update.update(value)
             continue

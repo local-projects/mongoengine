@@ -21,7 +21,7 @@ from bson import Binary, DBRef, ObjectId, SON
 try:
     from bson.int64 import Int64
 except ImportError:
-    Int64 = long
+    Int64 = int
 
 from mongoengine import *
 from mongoengine.connection import get_db
@@ -223,7 +223,7 @@ class FieldTest(MongoDBTestCase):
         HandleNoneFields.drop_collection()
 
         doc = HandleNoneFields()
-        doc.str_fld = u'spam ham egg'
+        doc.str_fld = 'spam ham egg'
         doc.int_fld = 42
         doc.flt_fld = 4.2
         doc.com_dt_fld = datetime.datetime.utcnow()
@@ -259,7 +259,7 @@ class FieldTest(MongoDBTestCase):
         HandleNoneFields.drop_collection()
 
         doc = HandleNoneFields()
-        doc.str_fld = u'spam ham egg'
+        doc.str_fld = 'spam ham egg'
         doc.int_fld = 42
         doc.flt_fld = 4.2
         doc.com_dt_fld = datetime.datetime.utcnow()
@@ -373,7 +373,7 @@ class FieldTest(MongoDBTestCase):
             url = URLField()
 
         link = Link()
-        link.url = u'http://привет.com'
+        link.url = 'http://привет.com'
 
         # TODO fix URL validation - this *IS* a valid URL
         # For now we just want to make sure that the error message is correct
@@ -382,8 +382,8 @@ class FieldTest(MongoDBTestCase):
             self.assertTrue(False)
         except ValidationError as e:
             self.assertEqual(
-                unicode(e),
-                u"ValidationError (Link:None) (Invalid URL: http://\u043f\u0440\u0438\u0432\u0435\u0442.com: ['url'])"
+                str(e),
+                "ValidationError (Link:None) (Invalid URL: http://\u043f\u0440\u0438\u0432\u0435\u0442.com: ['url'])"
             )
 
     def test_url_scheme_validation(self):
@@ -835,7 +835,7 @@ class FieldTest(MongoDBTestCase):
             self.assertEqual(log, log1)
 
         # Test string padding
-        microsecond = map(int, [math.pow(10, x) for x in range(6)])
+        microsecond = list(map(int, [math.pow(10, x) for x in range(6)]))
         mm = dd = hh = ii = ss = [1, 10]
 
         for values in itertools.product([2014], mm, dd, hh, ii, ss, microsecond):
@@ -1888,16 +1888,16 @@ class FieldTest(MongoDBTestCase):
         BlogPost.drop_collection()
 
         tree = BlogPost(info_dict={
-            u"éééé": {
-                'description': u"VALUE: éééé"
+            "éééé": {
+                'description': "VALUE: éééé"
             }
         })
 
         tree.save()
 
         self.assertEqual(
-            BlogPost.objects.get(id=tree.id).info_dict[u"éééé"].description,
-            u"VALUE: éééé"
+            BlogPost.objects.get(id=tree.id).info_dict["éééé"].description,
+            "VALUE: éééé"
         )
 
     def test_embedded_db_field(self):
@@ -2170,7 +2170,7 @@ class FieldTest(MongoDBTestCase):
             parent=DBRef('person', 'abcdefghijklmnop')
         )
         self.assertEqual(p.to_mongo(), SON([
-            ('name', u'Steve'),
+            ('name', 'Steve'),
             ('parent', 'abcdefghijklmnop')
         ]))
 
@@ -2432,7 +2432,7 @@ class FieldTest(MongoDBTestCase):
         brother = Brother(name="Bob", sibling=sister)
         brother.save()
 
-        self.assertEquals(Brother.objects[0].sibling.name, sister.name)
+        self.assertEqual(Brother.objects[0].sibling.name, sister.name)
 
     def test_reference_abstract_class(self):
         """Ensure that an abstract class instance cannot be used in the
@@ -3041,8 +3041,8 @@ class FieldTest(MongoDBTestCase):
         """
         SIZES = ('S', 'M', 'L', 'XL', 'XXL')
         COLORS = (('R', 'Red'), ('B', 'Blue'))
-        SIZE_MESSAGE = u"Value must be one of ('S', 'M', 'L', 'XL', 'XXL')"
-        COLOR_MESSAGE = u"Value must be one of ['R', 'B']"
+        SIZE_MESSAGE = "Value must be one of ('S', 'M', 'L', 'XL', 'XXL')"
+        COLOR_MESSAGE = "Value must be one of ['R', 'B']"
 
         class Shirt(Document):
             size = StringField(max_length=3, choices=SIZES)
@@ -3096,7 +3096,7 @@ class FieldTest(MongoDBTestCase):
         self.assertEqual(c['next'], 10)
 
         ids = [i.id for i in Person.objects]
-        self.assertEqual(ids, range(1, 11))
+        self.assertEqual(ids, list(range(1, 11)))
 
         c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
         self.assertEqual(c['next'], 10)
@@ -3151,7 +3151,7 @@ class FieldTest(MongoDBTestCase):
         self.assertEqual(c['next'], 10)
 
         ids = [i.id for i in Person.objects]
-        self.assertEqual(ids, range(1, 11))
+        self.assertEqual(ids, list(range(1, 11)))
 
         c = self.db['mongoengine.counters'].find_one({'_id': 'jelly.id'})
         self.assertEqual(c['next'], 10)
@@ -3176,10 +3176,10 @@ class FieldTest(MongoDBTestCase):
         self.assertEqual(c['next'], 10)
 
         ids = [i.id for i in Person.objects]
-        self.assertEqual(ids, range(1, 11))
+        self.assertEqual(ids, list(range(1, 11)))
 
         counters = [i.counter for i in Person.objects]
-        self.assertEqual(counters, range(1, 11))
+        self.assertEqual(counters, list(range(1, 11)))
 
         c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
         self.assertEqual(c['next'], 10)
@@ -3241,10 +3241,10 @@ class FieldTest(MongoDBTestCase):
         self.assertEqual(c['next'], 10)
 
         ids = [i.id for i in Person.objects]
-        self.assertEqual(ids, range(1, 11))
+        self.assertEqual(ids, list(range(1, 11)))
 
         id = [i.id for i in Animal.objects]
-        self.assertEqual(id, range(1, 11))
+        self.assertEqual(id, list(range(1, 11)))
 
         c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
         self.assertEqual(c['next'], 10)
@@ -3268,7 +3268,7 @@ class FieldTest(MongoDBTestCase):
         self.assertEqual(c['next'], 10)
 
         ids = [i.id for i in Person.objects]
-        self.assertEqual(ids, map(str, range(1, 11)))
+        self.assertEqual(ids, list(map(str, list(range(1, 11)))))
 
         c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
         self.assertEqual(c['next'], 10)
@@ -3461,7 +3461,7 @@ class FieldTest(MongoDBTestCase):
             self.assertTrue(1 in error_dict['comments'])
             self.assertTrue('content' in error_dict['comments'][1])
             self.assertEqual(error_dict['comments'][1]['content'],
-                             u'Field is required')
+                             'Field is required')
 
         post.comments[1].content = 'here we go'
         post.validate()
@@ -3487,11 +3487,11 @@ class FieldTest(MongoDBTestCase):
         self.assertRaises(ValidationError, user.validate)
 
         # unicode domain
-        user = User(email=u'user@пример.рф')
+        user = User(email='user@пример.рф')
         user.validate()
 
         # invalid unicode domain
-        user = User(email=u'user@пример')
+        user = User(email='user@пример')
         self.assertRaises(ValidationError, user.validate)
 
         # invalid data type
@@ -3508,14 +3508,14 @@ class FieldTest(MongoDBTestCase):
             email = EmailField()
 
         # unicode user shouldn't validate by default...
-        user = User(email=u'Dörte@Sörensen.example.com')
+        user = User(email='Dörte@Sörensen.example.com')
         self.assertRaises(ValidationError, user.validate)
 
         # ...but it should be fine with allow_utf8_user set to True
         class User(Document):
             email = EmailField(allow_utf8_user=True)
 
-        user = User(email=u'Dörte@Sörensen.example.com')
+        user = User(email='Dörte@Sörensen.example.com')
         user.validate()
 
     def test_email_field_domain_whitelist(self):
@@ -3711,8 +3711,8 @@ class FieldTest(MongoDBTestCase):
         Dog().save()
         Fish().save()
         Human().save()
-        self.assertEquals(Animal.objects(_cls__in=["Animal.Mammal.Dog", "Animal.Fish"]).count(), 2)
-        self.assertEquals(Animal.objects(_cls__in=["Animal.Fish.Guppy"]).count(), 0)
+        self.assertEqual(Animal.objects(_cls__in=["Animal.Mammal.Dog", "Animal.Fish"]).count(), 2)
+        self.assertEqual(Animal.objects(_cls__in=["Animal.Fish.Guppy"]).count(), 0)
 
     def test_sparse_field(self):
         class Doc(Document):
@@ -4089,10 +4089,10 @@ class EmbeddedDocumentListFieldTestCase(MongoDBTestCase):
         Tests that unicode strings handled correctly
         """
         post = self.BlogPost(comments=[
-            self.Comments(author='user1', message=u'сообщение'),
-            self.Comments(author='user2', message=u'хабарлама')
+            self.Comments(author='user1', message='сообщение'),
+            self.Comments(author='user2', message='хабарлама')
         ]).save()
-        self.assertEqual(post.comments.get(message=u'сообщение').author,
+        self.assertEqual(post.comments.get(message='сообщение').author,
                          'user1')
 
     def test_save(self):
@@ -4379,11 +4379,11 @@ class CachedReferenceFieldTest(MongoDBTestCase):
 
         self.assertEqual(dict(a2.to_mongo()), {
             "_id": a2.pk,
-            "name": u"Wilson Junior",
-            "tp": u"pf",
+            "name": "Wilson Junior",
+            "tp": "pf",
             "father": {
                 "_id": a1.pk,
-                "tp": u"pj"
+                "tp": "pj"
             }
         })
 
@@ -4398,11 +4398,11 @@ class CachedReferenceFieldTest(MongoDBTestCase):
         a2.reload()
         self.assertEqual(dict(a2.to_mongo()), {
             "_id": a2.pk,
-            "name": u"Wilson Junior",
-            "tp": u"pf",
+            "name": "Wilson Junior",
+            "tp": "pf",
             "father": {
                 "_id": a1.pk,
-                "tp": u"pf"
+                "tp": "pf"
             }
         })
 
