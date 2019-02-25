@@ -33,13 +33,11 @@ from mongoengine.common import _import_class
 #from mongoengine.connection import DEFAULT_CONNECTION_NAME, get_db
 #from mongoengine.document import Document, EmbeddedDocument
 from mongoengine.errors import DoesNotExist, InvalidQueryError  #, ValidationError
-#from mongoengine.python_support import StringIO
 #from mongoengine.queryset import DO_NOTHING
 from mongoengine.queryset.base import BaseQuerySet
 
 from errors import ValidationError
-from python_support import (PY3, bin_type, txt_type,
-                            str_types, StringIO)
+from io import StringIO
 from base import (BaseField, ComplexBaseField, ObjectIdField, GeoJsonBaseField,
                   get_document, BaseDocument)
 from queryset import DO_NOTHING, QuerySet
