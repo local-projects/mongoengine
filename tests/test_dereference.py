@@ -666,6 +666,7 @@ class FieldTest(unittest.TestCase):
 
                 # for k, m in iteritems(group_obj.members):
                 #     self.assertIsInstance(m, User)
+
                 for k, m in group_obj.members.items():
                     self.assertTrue(isinstance(m, User))
 
@@ -835,7 +836,6 @@ class FieldTest(unittest.TestCase):
 
             [m for m in group_obj.members]
             self.assertEqual(q, 2)
-
             # for k, m in iteritems(group_obj.members):
             #     self.assertIsInstance(m, UserA)
             for k, m in group_obj.members.items():
@@ -932,6 +932,7 @@ class FieldTest(unittest.TestCase):
 
             # for k, m in iteritems(group_obj.members):
             #     self.assertIn('User', m.__class__.__name__)
+
             for k, m in group_obj.members.items():
                 self.assertTrue('User' in m.__class__.__name__)
 

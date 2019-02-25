@@ -85,10 +85,14 @@ class BaseDocument(object):
 
         # Assign default values to instance
 <<<<<<< HEAD
+<<<<<<< HEAD
         for key, field in iteritems(self._fields):
 =======
         for key, field in self._fields.items():
 >>>>>>> Run 2to3
+=======
+        for key, field in self._fields.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             if self._db_field_map.get(key, key) in __only_fields:
                 continue
             value = getattr(self, key, None)
@@ -101,10 +105,14 @@ class BaseDocument(object):
         if self._dynamic:
             dynamic_data = {}
 <<<<<<< HEAD
+<<<<<<< HEAD
             for key, value in iteritems(values):
 =======
             for key, value in values.items():
 >>>>>>> Run 2to3
+=======
+            for key, value in values.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                 if key in self._fields or key == '_id':
                     setattr(self, key, value)
                 else:
@@ -112,8 +120,11 @@ class BaseDocument(object):
         else:
             FileField = _import_class('FileField')
 <<<<<<< HEAD
+<<<<<<< HEAD
             for key, value in iteritems(values):
 =======
+=======
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             for key, value in values.items():
                 if key == '__auto_convert':
                     continue
@@ -134,10 +145,14 @@ class BaseDocument(object):
         if self._dynamic:
             self._dynamic_lock = False
 <<<<<<< HEAD
+<<<<<<< HEAD
             for key, value in iteritems(dynamic_data):
 =======
             for key, value in dynamic_data.items():
 >>>>>>> Run 2to3
+=======
+            for key, value in dynamic_data.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                 setattr(self, key, value)
 
         # Flag initialised
@@ -533,6 +548,7 @@ class BaseDocument(object):
             iterator = enumerate(data)
         else:
 <<<<<<< HEAD
+<<<<<<< HEAD
             iterator = iteritems(data)
 =======
             iterator = iter(data.items())
@@ -540,6 +556,12 @@ class BaseDocument(object):
 
         for index_or_key, value in iterator:
             item_key = '%s%s.' % (base_key, index_or_key)
+=======
+            iterator = iter(data.items())
+
+        for index, value in iterator:
+            list_key = '%s%s.' % (key, index)
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             # don't check anything lower if this key is already marked
             # as changed.
             if item_key[:-1] in changed_fields:
@@ -587,10 +609,14 @@ class BaseDocument(object):
                 elif isinstance(field, SortedListField) and field._ordering:
                     # if ordering is affected whole list is changed
 <<<<<<< HEAD
+<<<<<<< HEAD
                     if any(field._ordering in d._changed_fields for d in data):
 =======
                     if any([field._ordering in d._changed_fields for d in data]):
 >>>>>>> Run 2to3
+=======
+                    if any([field._ordering in d._changed_fields for d in data]):
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                         changed_fields.append(db_field_name)
                         continue
 
@@ -634,9 +660,12 @@ class BaseDocument(object):
 
         # Determine if any changed items were actually unset.
 <<<<<<< HEAD
+<<<<<<< HEAD
         for path, value in set_data.items():
             if value or isinstance(value, (numbers.Number, bool)):  # Account for 0 and True that are truthy
 =======
+=======
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         for path, value in list(set_data.items()):
             if value or isinstance(value, (numbers.Number, bool)):
 >>>>>>> Run 2to3
@@ -711,10 +740,14 @@ class BaseDocument(object):
         # corresponds to the right db field.
         data = {}
 <<<<<<< HEAD
+<<<<<<< HEAD
         for key, value in iteritems(son):
 =======
         for key, value in son.items():
 >>>>>>> Run 2to3
+=======
+        for key, value in son.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             key = str(key)
             key = cls._db_field_map.get(key, key)
             data[key] = value
@@ -731,10 +764,14 @@ class BaseDocument(object):
             fields = copy.deepcopy(fields)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         for field_name, field in iteritems(fields):
 =======
         for field_name, field in fields.items():
 >>>>>>> Run 2to3
+=======
+        for field_name, field in fields.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             field._auto_dereference = _auto_dereference
             if field.db_field in data:
                 value = data[field.db_field]
@@ -756,10 +793,14 @@ class BaseDocument(object):
         # In STRICT documents, remove any keys that aren't in cls._fields
         if cls.STRICT:
 <<<<<<< HEAD
+<<<<<<< HEAD
             data = {k: v for k, v in iteritems(data) if k in cls._fields}
 =======
             data = {k: v for k, v in data.items() if k in cls._fields}
 >>>>>>> Run 2to3
+=======
+            data = {k: v for k, v in data.items() if k in cls._fields}
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
 
         obj = cls(__auto_convert=False, _created=created, __only_fields=only_fields, **data)
         obj._changed_fields = changed_fields

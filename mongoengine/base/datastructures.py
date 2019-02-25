@@ -132,9 +132,12 @@ class BaseList(list):
 
     def __iter__(self):
 <<<<<<< HEAD
+<<<<<<< HEAD
         for v in super(BaseList, self).__iter__():
             yield v
 =======
+=======
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         for i in range(self.__len__()):
             yield self[i]
 
@@ -389,10 +392,14 @@ class StrictDict(object):
 
     def __init__(self, **kwargs):
 <<<<<<< HEAD
+<<<<<<< HEAD
         for k, v in iteritems(kwargs):
 =======
         for k, v in kwargs.items():
 >>>>>>> Run 2to3
+=======
+        for k, v in kwargs.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             setattr(self, k, v)
 
     def __getitem__(self, key):
@@ -441,10 +448,14 @@ class StrictDict(object):
 
     def __len__(self):
 <<<<<<< HEAD
+<<<<<<< HEAD
         return len(list(iteritems(self)))
 =======
         return len(list(self.items()))
 >>>>>>> Run 2to3
+=======
+        return len(list(self.items()))
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
 
     def __eq__(self, other):
         return list(self.items()) == list(other.items())

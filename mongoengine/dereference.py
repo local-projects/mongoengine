@@ -122,10 +122,14 @@ class DeReference(object):
         for item in iterator:
             if isinstance(item, (Document, EmbeddedDocument)):
 <<<<<<< HEAD
+<<<<<<< HEAD
                 for field_name, field in iteritems(item._fields):
 =======
                 for field_name, field in item._fields.items():
 >>>>>>> Run 2to3
+=======
+                for field_name, field in item._fields.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                     v = item._data.get(field_name, None)
                     if isinstance(v, LazyReference):
                         # LazyReference inherits DBRef but should not be dereferenced here !
@@ -138,10 +142,14 @@ class DeReference(object):
                         field_cls = getattr(getattr(field, 'field', None), 'document_type', None)
                         references = self._find_references(v, depth)
 <<<<<<< HEAD
+<<<<<<< HEAD
                         for key, refs in iteritems(references):
 =======
                         for key, refs in references.items():
 >>>>>>> Run 2to3
+=======
+                        for key, refs in references.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                             if isinstance(field_cls, (Document, TopLevelDocumentMetaclass)):
                                 key = field_cls
                             reference_map.setdefault(key, set()).update(refs)
@@ -155,10 +163,14 @@ class DeReference(object):
             elif isinstance(item, (dict, list, tuple)) and depth - 1 <= self.max_depth:
                 references = self._find_references(item, depth - 1)
 <<<<<<< HEAD
+<<<<<<< HEAD
                 for key, refs in iteritems(references):
 =======
                 for key, refs in references.items():
 >>>>>>> Run 2to3
+=======
+                for key, refs in references.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                     reference_map.setdefault(key, set()).update(refs)
 
         return reference_map
@@ -168,6 +180,7 @@ class DeReference(object):
         """
         object_map = {}
 <<<<<<< HEAD
+<<<<<<< HEAD
         for collection, dbrefs in iteritems(self.reference_map):
 
             # we use getattr instead of hasattr because hasattr swallows any exception under python2
@@ -176,6 +189,8 @@ class DeReference(object):
 
             if ref_document_cls_exists:
 =======
+=======
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         for collection, dbrefs in self.reference_map.items():
             if hasattr(collection, 'objects'):  # We have a document class for the refs
 >>>>>>> Run 2to3
@@ -184,10 +199,14 @@ class DeReference(object):
                         if (col_name, dbref) not in object_map]
                 references = collection.objects.in_bulk(refs)
 <<<<<<< HEAD
+<<<<<<< HEAD
                 for key, doc in iteritems(references):
 =======
                 for key, doc in references.items():
 >>>>>>> Run 2to3
+=======
+                for key, doc in references.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                     object_map[(col_name, key)] = doc
             else:  # Generic reference: use the refs data to convert to document
                 if isinstance(doc_type, (ListField, DictField, MapField)):
@@ -260,10 +279,14 @@ class DeReference(object):
         else:
             is_list = False
 <<<<<<< HEAD
+<<<<<<< HEAD
             iterator = iteritems(items)
 =======
             iterator = iter(items.items())
 >>>>>>> Run 2to3
+=======
+            iterator = iter(items.items())
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             data = {}
 
         depth += 1

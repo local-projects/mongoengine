@@ -4044,6 +4044,7 @@ class QuerySetTest(unittest.TestCase):
                  value.get('sparse', False))
         #         for key, value in iteritems(info)]
         # self.assertIn(([('_cls', 1), ('message', 1)], False, False), info)
+
                 for key, value in info.items()]
         self.assertTrue(([('_cls', 1), ('message', 1)], False, False) in info)
 

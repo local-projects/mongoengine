@@ -7,8 +7,13 @@ from mongoengine.base.common import _document_registry
 from mongoengine.base.fields import BaseField, ComplexBaseField, ObjectIdField
 from mongoengine.common import _import_class
 from mongoengine.errors import InvalidDocumentError
+<<<<<<< HEAD
 from mongoengine.python_support import PY3
 from mongoengine.signals import _signals
+=======
+from mongoengine.signals import _signals
+from mongoengine.connection import MongoEngineConnectionError
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
 from mongoengine.queryset import (DO_NOTHING, DoesNotExist,
                                   MultipleObjectsReturned,
                                   QuerySetManager)
@@ -66,10 +71,14 @@ class DocumentMetaclass(type):
             if not hasattr(base, '_meta'):
                 base_fields = {}
 <<<<<<< HEAD
+<<<<<<< HEAD
                 for attr_name, attr_value in iteritems(base.__dict__):
 =======
                 for attr_name, attr_value in base.__dict__.items():
 >>>>>>> Run 2to3
+=======
+                for attr_name, attr_value in base.__dict__.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                     if not isinstance(attr_value, BaseField):
                         continue
                     attr_value.name = attr_name
@@ -82,10 +91,14 @@ class DocumentMetaclass(type):
         # Discover any document fields
         field_names = {}
 <<<<<<< HEAD
+<<<<<<< HEAD
         for attr_name, attr_value in iteritems(attrs):
 =======
         for attr_name, attr_value in attrs.items():
 >>>>>>> Run 2to3
+=======
+        for attr_name, attr_value in attrs.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             if not isinstance(attr_value, BaseField):
                 continue
             attr_value.name = attr_name
@@ -115,10 +128,14 @@ class DocumentMetaclass(type):
         attrs['_fields_ordered'] = tuple(i[1] for i in sorted(
                                          (v.creation_counter, v.name)
 <<<<<<< HEAD
+<<<<<<< HEAD
                                          for v in itervalues(doc_fields)))
 =======
                                          for v in doc_fields.values()))
 >>>>>>> Run 2to3
+=======
+                                         for v in doc_fields.values()))
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
 
         #
         # Set document hierarchy
@@ -189,10 +206,14 @@ class DocumentMetaclass(type):
 
         # Handle delete rules
 <<<<<<< HEAD
+<<<<<<< HEAD
         for field in itervalues(new_class._fields):
 =======
         for field in new_class._fields.values():
 >>>>>>> Run 2to3
+=======
+        for field in new_class._fields.values():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             f = field
             if f.owner_document is None:
                 f.owner_document = new_class
@@ -395,10 +416,14 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
 
         # Validate the fields and set primary key if needed
 <<<<<<< HEAD
+<<<<<<< HEAD
         for field_name, field in iteritems(new_class._fields):
 =======
         for field_name, field in new_class._fields.items():
 >>>>>>> Run 2to3
+=======
+        for field_name, field in new_class._fields.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             if field.primary_key:
                 # Ensure only one primary key is set
                 current_pk = new_class._meta.get('id_field')
@@ -447,9 +472,15 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
                             signal = _signals.get(key)
                             if signal:
                                 signal.connect(attr, sender=new_class)
+<<<<<<< HEAD
             except ConnectionError:
                 pass
 
+=======
+            except MongoEngineConnectionError:
+                pass
+              
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         return new_class
 
     @classmethod
@@ -475,10 +506,14 @@ class MetaDict(dict):
 
     def merge(self, new_options):
 <<<<<<< HEAD
+<<<<<<< HEAD
         for k, v in iteritems(new_options):
 =======
         for k, v in new_options.items():
 >>>>>>> Run 2to3
+=======
+        for k, v in new_options.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             if k in self._merge_options:
                 self[k] = self.get(k, []) + v
             else:

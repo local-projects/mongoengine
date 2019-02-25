@@ -326,9 +326,12 @@ class LongField(BaseField):
     def to_python(self, value):
         try:
 <<<<<<< HEAD
+<<<<<<< HEAD
             value = long(value)
         except (TypeError, ValueError):
 =======
+=======
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             value = int(value)
         except ValueError:
 >>>>>>> Run 2to3
@@ -341,9 +344,12 @@ class LongField(BaseField):
     def validate(self, value):
         try:
 <<<<<<< HEAD
+<<<<<<< HEAD
             value = long(value)
         except (TypeError, ValueError):
 =======
+=======
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             value = int(value)
         except Exception:
 >>>>>>> Run 2to3
@@ -635,10 +641,14 @@ class ComplexDateTimeField(StringField):
         datetime.datetime(2011, 6, 8, 20, 26, 24, 92284)
         """
 <<<<<<< HEAD
+<<<<<<< HEAD
         values = [int(d) for d in data.split(self.separator)]
 =======
         values = list(map(int, data.split(self.separator)))
 >>>>>>> Run 2to3
+=======
+        values = list(map(int, data.split(self.separator)))
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         return datetime.datetime(*values)
 
     def __get__(self, instance, owner):
@@ -829,19 +839,27 @@ class DynamicField(BaseField):
 
         data = {}
 <<<<<<< HEAD
+<<<<<<< HEAD
         for k, v in iteritems(value):
 =======
         for k, v in value.items():
 >>>>>>> Run 2to3
+=======
+        for k, v in value.items():
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             data[k] = self.to_mongo(v, use_db_field, fields)
 
         value = data
         if is_list:  # Convert back to a list
 <<<<<<< HEAD
+<<<<<<< HEAD
             value = [v for k, v in sorted(iteritems(data), key=itemgetter(0))]
 =======
             value = [v for k, v in sorted(iter(data.items()), key=itemgetter(0))]
 >>>>>>> Run 2to3
+=======
+            value = [v for k, v in sorted(iter(data.items()), key=itemgetter(0))]
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         return value
 
     def to_python(self, value):
@@ -986,9 +1004,12 @@ def key_has_dot_or_dollar(d):
     dictionary contains a dot or a dollar sign.
     """
 <<<<<<< HEAD
+<<<<<<< HEAD
     for k, v in d.items():
         if ('.' in k or k.startswith('$')) or (isinstance(v, dict) and key_has_dot_or_dollar(v)):
 =======
+=======
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
     for k, v in list(d.items()):
         if ('.' in k or '$' in k) or (isinstance(v, dict) and key_has_dot_or_dollar(v)):
 >>>>>>> Run 2to3

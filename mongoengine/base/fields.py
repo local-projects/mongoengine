@@ -384,18 +384,24 @@ class ComplexBaseField(BaseField):
             value_dict = {
                 key: self.field._to_mongo_safe_call(item, use_db_field, fields)
 <<<<<<< HEAD
+<<<<<<< HEAD
                 for key, item in iteritems(value)
             }
         else:
             value_dict = {}
             for k, v in iteritems(value):
 =======
+=======
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                 for key, item in value.items()
             }
         else:
             value_dict = {}
             for k, v in value.items():
+<<<<<<< HEAD
 >>>>>>> Run 2to3
+=======
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                 if isinstance(v, Document):
                     # We need the id from the saved object to create the DBRef
                     if v.pk is None:
@@ -433,10 +439,14 @@ class ComplexBaseField(BaseField):
         if self.field:
             if hasattr(value, 'iteritems') or hasattr(value, 'items'):
 <<<<<<< HEAD
+<<<<<<< HEAD
                 sequence = iteritems(value)
 =======
                 sequence = iter(value.items())
 >>>>>>> Run 2to3
+=======
+                sequence = iter(value.items())
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             else:
                 sequence = enumerate(value)
             for k, v in sequence:

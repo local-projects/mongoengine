@@ -19,6 +19,7 @@ if not six.PY3:
         pass
     else:
 <<<<<<< HEAD
+<<<<<<< HEAD
         StringIO = cStringIO.StringIO
 
 
@@ -30,3 +31,6 @@ else:
 =======
         StringIO = io.StringIO
 >>>>>>> Run 2to3
+=======
+        StringIO = io.StringIO
+>>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
