@@ -18,8 +18,6 @@ if not six.PY3:
     except ImportError:
         pass
     else:
-<<<<<<< HEAD
-<<<<<<< HEAD
         StringIO = cStringIO.StringIO
 
 
@@ -28,9 +26,4 @@ if six.PY3:
 else:
     # raises DeprecationWarnings in Python >=3.7
     from collections import Hashable
-=======
-        StringIO = io.StringIO
->>>>>>> Run 2to3
-=======
-        StringIO = io.StringIO
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
+    StringIO = io.StringIO
