@@ -19,15 +19,7 @@ def get_document(name):
         # Possible old style name
         single_end = name.split('.')[-1]
         compound_end = '.%s' % single_end
-<<<<<<< HEAD
-<<<<<<< HEAD
-        possible_match = [k for k in _document_registry
-=======
         possible_match = [k for k in list(_document_registry.keys())
->>>>>>> Run 2to3
-=======
-        possible_match = [k for k in list(_document_registry.keys())
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                           if k.endswith(compound_end) or k == single_end]
         if len(possible_match) == 1:
             doc = _document_registry.get(possible_match.pop(), None)

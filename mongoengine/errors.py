@@ -114,15 +114,7 @@ class ValidationError(AssertionError):
                 return errors_dict
 
             if isinstance(source, dict):
-<<<<<<< HEAD
-<<<<<<< HEAD
-                for field_name, error in iteritems(source):
-=======
                 for field_name, error in source.items():
->>>>>>> Run 2to3
-=======
-                for field_name, error in source.items():
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                     errors_dict[field_name] = build_dict(error)
             elif isinstance(source, ValidationError) and source.errors:
                 return build_dict(source.errors)
@@ -144,32 +136,12 @@ class ValidationError(AssertionError):
                 value = ' '.join([generate_key(k) for k in value])
             elif isinstance(value, dict):
                 value = ' '.join(
-<<<<<<< HEAD
-<<<<<<< HEAD
-                    [generate_key(v, k) for k, v in iteritems(value)])
-=======
                     [generate_key(v, k) for k, v in value.items()])
->>>>>>> Run 2to3
-=======
-                    [generate_key(v, k) for k, v in value.items()])
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
 
             results = '%s.%s' % (prefix, value) if prefix else value
             return results
 
         error_dict = defaultdict(list)
-<<<<<<< HEAD
-<<<<<<< HEAD
-        for k, v in iteritems(self.to_dict()):
-            error_dict[generate_key(v)].append(k)
-        return ' '.join(['%s: %s' % (k, v) for k, v in iteritems(error_dict)])
-=======
         for k, v in self.to_dict().items():
             error_dict[generate_key(v)].append(k)
         return ' '.join(['%s: %s' % (k, v) for k, v in error_dict.items()])
->>>>>>> Run 2to3
-=======
-        for k, v in self.to_dict().items():
-            error_dict[generate_key(v)].append(k)
-        return ' '.join(['%s: %s' % (k, v) for k, v in error_dict.items()])
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149

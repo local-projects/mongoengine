@@ -42,15 +42,8 @@ class InvalidCollectionError(Exception):
     pass
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-class EmbeddedDocument(six.with_metaclass(DocumentMetaclass, BaseDocument)):
-=======
+# class EmbeddedDocument(six.with_metaclass(DocumentMetaclass, BaseDocument)):
 class EmbeddedDocument(BaseDocument, metaclass=DocumentMetaclass):
->>>>>>> Run 2to3
-=======
-class EmbeddedDocument(BaseDocument, metaclass=DocumentMetaclass):
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
     """A :class:`~mongoengine.Document` that isn't stored in its own
     collection.  :class:`~mongoengine.EmbeddedDocument`\ s should be used as
     fields on :class:`~mongoengine.Document`\ s through the
@@ -111,15 +104,8 @@ class EmbeddedDocument(BaseDocument, metaclass=DocumentMetaclass):
         self._instance.reload(*args, **kwargs)
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-class Document(six.with_metaclass(TopLevelDocumentMetaclass, BaseDocument)):
-=======
+# class Document(six.with_metaclass(TopLevelDocumentMetaclass, BaseDocument)):
 class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
->>>>>>> Run 2to3
-=======
-class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
     """The base class used for defining the structure and properties of
     collections of documents stored in MongoDB. Inherit from this class, and
     add fields as class attributes to define a document's structure.
@@ -427,16 +413,10 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
         #     message = u'Tried to save duplicate unique keys (%s)'
         #     raise NotUniqueError(message % six.text_type(err))
         except pymongo.errors.DuplicateKeyError as err:
-<<<<<<< HEAD
-<<<<<<< HEAD
-            message = u'Tried to save duplicate unique keys (%s)'
-            raise NotUniqueError(message % unicode(err))
-=======
-=======
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
+            # message = u'Tried to save duplicate unique keys (%s)'
+            # raise NotUniqueError(message % unicode(err))
             message = 'Tried to save duplicate unique keys (%s)'
             raise NotUniqueError(message % six.text_type(err))
->>>>>>> Run 2to3
         except pymongo.errors.OperationFailure as err:
             message = 'Could not save document (%s)'
             if re.match('^E1100[01] duplicate key', six.text_type(err)):
@@ -641,15 +621,7 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
 
         # Delete FileFields separately
         FileField = _import_class('FileField')
-<<<<<<< HEAD
-<<<<<<< HEAD
-        for name, field in iteritems(self._fields):
-=======
         for name, field in self._fields.items():
->>>>>>> Run 2to3
-=======
-        for name, field in self._fields.items():
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             if isinstance(field, FileField):
                 getattr(self, name).delete()
 
@@ -1021,24 +993,19 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
         """
 
         required = cls.list_indexes()
-<<<<<<< HEAD
 
-        existing = []
-        for info in cls._get_collection().index_information().values():
-            if '_fts' in info['key'][0]:
-                index_type = info['key'][0][1]
-                text_index_fields = info.get('weights').keys()
-                existing.append(
-                    [(key, index_type) for key in text_index_fields])
-            else:
-                existing.append(info['key'])
-=======
+        # existing = []
+        # for info in cls._get_collection().index_information().values():
+        #     if '_fts' in info['key'][0]:
+        #         index_type = info['key'][0][1]
+        #         text_index_fields = info.get('weights').keys()
+        #         existing.append(
+        #             [(key, index_type) for key in text_index_fields])
+        #     else:
+        #         existing.append(info['key'])
+
         existing = [info['key']
                     for info in list(cls._get_collection().index_information().values())]
-<<<<<<< HEAD
->>>>>>> Run 2to3
-=======
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         missing = [index for index in required if index not in existing]
         extra = [index for index in existing if index not in required]
 
@@ -1055,15 +1022,8 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
         return {'missing': missing, 'extra': extra}
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-class DynamicDocument(six.with_metaclass(TopLevelDocumentMetaclass, Document)):
-=======
+# class DynamicDocument(six.with_metaclass(TopLevelDocumentMetaclass, Document)):
 class DynamicDocument(Document, metaclass=TopLevelDocumentMetaclass):
->>>>>>> Run 2to3
-=======
-class DynamicDocument(Document, metaclass=TopLevelDocumentMetaclass):
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
     """A Dynamic Document class allowing flexible, expandable and uncontrolled
     schemas.  As a :class:`~mongoengine.Document` subclass, acts in the same
     way as an ordinary document but has expanded style properties.  Any data
@@ -1095,15 +1055,8 @@ class DynamicDocument(Document, metaclass=TopLevelDocumentMetaclass):
             super(DynamicDocument, self).__delattr__(*args, **kwargs)
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-class DynamicEmbeddedDocument(six.with_metaclass(DocumentMetaclass, EmbeddedDocument)):
-=======
+# class DynamicEmbeddedDocument(six.with_metaclass(DocumentMetaclass, EmbeddedDocument)):
 class DynamicEmbeddedDocument(EmbeddedDocument, metaclass=DocumentMetaclass):
->>>>>>> Run 2to3
-=======
-class DynamicEmbeddedDocument(EmbeddedDocument, metaclass=DocumentMetaclass):
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
     """A Dynamic Embedded Document class allowing flexible, expandable and
     uncontrolled schemas. See :class:`~mongoengine.DynamicDocument` for more
     information about dynamic documents.

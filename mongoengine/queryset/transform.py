@@ -155,15 +155,7 @@ def query(_doc_cls=None, **kwargs):
                 if ('$maxDistance' in value_dict or '$minDistance' in value_dict) and \
                         ('$near' in value_dict or '$nearSphere' in value_dict):
                     value_son = SON()
-<<<<<<< HEAD
-<<<<<<< HEAD
-                    for k, v in iteritems(value_dict):
-=======
                     for k, v in value_dict.items():
->>>>>>> Run 2to3
-=======
-                    for k, v in value_dict.items():
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                         if k == '$maxDistance' or k == '$minDistance':
                             continue
                         value_son[k] = v
@@ -210,16 +202,7 @@ def update(_doc_cls=None, **update):
     format.
     """
     mongo_update = {}
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-    for key, value in update.items():
-=======
     for key, value in list(update.items()):
->>>>>>> Run 2to3
-=======
-    for key, value in list(update.items()):
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         if key == '__raw__':
             mongo_update.update(value)
             continue

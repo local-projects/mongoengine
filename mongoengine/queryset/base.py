@@ -224,16 +224,6 @@ class BaseQuerySet(object):
         queryset = self.order_by()
         return False if queryset.first() is None else True
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
-    def __bool__(self):
-        """Avoid to open all records in an if stmt in Py2."""
-        return self._has_data()
-
->>>>>>> Run 2to3
     def __bool__(self):
         """Avoid to open all records in an if stmt in Py3."""
         return self._has_data()
@@ -292,29 +282,13 @@ class BaseQuerySet(object):
         queryset = queryset.filter(*q_objs, **query)
 
         try:
-<<<<<<< HEAD
-<<<<<<< HEAD
-            result = six.next(queryset)
-=======
             result = next(queryset)
->>>>>>> Run 2to3
-=======
-            result = next(queryset)
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         except StopIteration:
             msg = ('%s matching query does not exist.'
                    % queryset._document._class_name)
             raise queryset._document.DoesNotExist(msg)
         try:
-<<<<<<< HEAD
-<<<<<<< HEAD
-            six.next(queryset)
-=======
             next(queryset)
->>>>>>> Run 2to3
-=======
-            next(queryset)
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         except StopIteration:
             return result
 
@@ -588,24 +562,10 @@ class BaseQuerySet(object):
             elif result:
                 return result['n']
         except pymongo.errors.DuplicateKeyError as err:
-<<<<<<< HEAD
-<<<<<<< HEAD
-            raise NotUniqueError(u'Update failed (%s)' % unicode(err))
-        except pymongo.errors.OperationFailure as err:
-            if unicode(err) == u'multi not coded yet':
-                message = u'update() method requires MongoDB 1.1.3+'
-=======
             raise NotUniqueError('Update failed (%s)' % six.text_type(err))
         except pymongo.errors.OperationFailure as err:
             if six.text_type(err) == 'multi not coded yet':
                 message = 'update() method requires MongoDB 1.1.3+'
->>>>>>> Run 2to3
-=======
-            raise NotUniqueError('Update failed (%s)' % six.text_type(err))
-        except pymongo.errors.OperationFailure as err:
-            if six.text_type(err) == 'multi not coded yet':
-                message = 'update() method requires MongoDB 1.1.3+'
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                 raise OperationError(message)
             raise OperationError('Update failed (%s)' % six.text_type(err))
 
@@ -719,24 +679,9 @@ class BaseQuerySet(object):
                     query, update, upsert=upsert, sort=sort, remove=remove, new=new,
                     full_response=full_response, **self._cursor_args)
         except pymongo.errors.DuplicateKeyError as err:
-<<<<<<< HEAD
-<<<<<<< HEAD
-        #     raise NotUniqueError(u'Update failed (%s)' % err)
-        # except pymongo.errors.OperationFailure as err:
-        #     raise OperationError(u'Update failed (%s)' % err)
-            raise NotUniqueError(u"Update failed (%s)" % err)
-        except pymongo.errors.OperationFailure as err:
-            raise OperationError(u"Update failed (%s)" % err)
-=======
             raise NotUniqueError('Update failed (%s)' % err)
         except pymongo.errors.OperationFailure as err:
             raise OperationError('Update failed (%s)' % err)
->>>>>>> Run 2to3
-=======
-            raise NotUniqueError('Update failed (%s)' % err)
-        except pymongo.errors.OperationFailure as err:
-            raise OperationError('Update failed (%s)' % err)
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
 
         if full_response:
             if result['value'] is not None:
@@ -1574,15 +1519,7 @@ class BaseQuerySet(object):
         if self._limit == 0 or self._none:
             raise StopIteration
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-        raw_doc = six.next(self._cursor)
-=======
         raw_doc = next(self._cursor)
->>>>>>> Run 2to3
-=======
-        raw_doc = next(self._cursor)
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
 
         if self._as_pymongo:
             return raw_doc
@@ -1830,29 +1767,12 @@ class BaseQuerySet(object):
             }
         """
         total, data, types = self.exec_js(freq_func, field)
-<<<<<<< HEAD
-<<<<<<< HEAD
-        values = {types.get(k): int(v) for k, v in iteritems(data)}
-=======
         values = {types.get(k): int(v) for k, v in data.items()}
->>>>>>> Run 2to3
-=======
-        values = {types.get(k): int(v) for k, v in data.items()}
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
-
         if normalize:
             values = {k: float(v) / total for k, v in list(values.items())}
 
         frequencies = {}
-<<<<<<< HEAD
-<<<<<<< HEAD
-        for k, v in iteritems(values):
-=======
         for k, v in values.items():
->>>>>>> Run 2to3
-=======
-        for k, v in values.items():
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             if isinstance(k, float):
                 if int(k) == k:
                     k = int(k)
@@ -1972,18 +1892,8 @@ class BaseQuerySet(object):
             # Substitute the correct name for the field into the javascript
             return '.'.join([f.db_field for f in fields])
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-        code = re.sub(r'\[\s*~([A-z_][A-z_0-9.]+?)\s*\]', field_sub, code)
-        code = re.sub(r'\{\{\s*~([A-z_][A-z_0-9.]+?)\s*\}\}', field_path_sub,
-=======
         code = re.sub('\[\s*~([A-z_][A-z_0-9.]+?)\s*\]', field_sub, code)
         code = re.sub('\{\{\s*~([A-z_][A-z_0-9.]+?)\s*\}\}', field_path_sub,
->>>>>>> Run 2to3
-=======
-        code = re.sub('\[\s*~([A-z_][A-z_0-9.]+?)\s*\]', field_sub, code)
-        code = re.sub('\{\{\s*~([A-z_][A-z_0-9.]+?)\s*\}\}', field_path_sub,
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                       code)
         return code
 

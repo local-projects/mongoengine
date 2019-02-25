@@ -114,15 +114,7 @@ class no_dereference(object):
         GenericReferenceField = _import_class('GenericReferenceField')
         ComplexBaseField = _import_class('ComplexBaseField')
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-        self.deref_fields = [k for k, v in iteritems(self.cls._fields)
-=======
         self.deref_fields = [k for k, v in self.cls._fields.items()
->>>>>>> Run 2to3
-=======
-        self.deref_fields = [k for k, v in self.cls._fields.items()
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
                              if isinstance(v, (ReferenceField,
                                                GenericReferenceField,
                                                ComplexBaseField))]

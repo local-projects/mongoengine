@@ -114,18 +114,8 @@ class QuerySet(BaseQuerySet):
         # Pull in ITER_CHUNK_SIZE docs from the database and store them in
         # the result cache.
         try:
-<<<<<<< HEAD
-<<<<<<< HEAD
-            for _ in six.moves.range(ITER_CHUNK_SIZE):
-                self._result_cache.append(six.next(self))
-=======
             for _ in range(ITER_CHUNK_SIZE):
                 self._result_cache.append(next(self))
->>>>>>> Run 2to3
-=======
-            for _ in range(ITER_CHUNK_SIZE):
-                self._result_cache.append(next(self))
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         except StopIteration:
             # Getting this exception means there are no more docs in the
             # db cursor. Set _has_more to False so that we can use that
@@ -178,21 +168,9 @@ class QuerySetNoCache(BaseQuerySet):
             return '.. queryset mid-iteration ..'
 
         data = []
-<<<<<<< HEAD
-<<<<<<< HEAD
-        for _ in six.moves.range(REPR_OUTPUT_SIZE + 1):
-            try:
-                data.append(six.next(self))
-=======
         for _ in range(REPR_OUTPUT_SIZE + 1):
             try:
                 data.append(next(self))
->>>>>>> Run 2to3
-=======
-        for _ in range(REPR_OUTPUT_SIZE + 1):
-            try:
-                data.append(next(self))
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             except StopIteration:
                 break
 

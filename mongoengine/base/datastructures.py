@@ -131,13 +131,6 @@ class BaseList(list):
         return value
 
     def __iter__(self):
-<<<<<<< HEAD
-<<<<<<< HEAD
-        for v in super(BaseList, self).__iter__():
-            yield v
-=======
-=======
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
         for i in range(self.__len__()):
             yield self[i]
 
@@ -159,7 +152,6 @@ class BaseList(list):
     def __delslice__(self, *args, **kwargs):
         self._mark_as_changed()
         return super(BaseList, self).__delslice__(*args, **kwargs)
->>>>>>> Run 2to3
 
     def __getstate__(self):
         self.instance = None
@@ -391,15 +383,7 @@ class StrictDict(object):
     _classes = {}
 
     def __init__(self, **kwargs):
-<<<<<<< HEAD
-<<<<<<< HEAD
-        for k, v in iteritems(kwargs):
-=======
         for k, v in kwargs.items():
->>>>>>> Run 2to3
-=======
-        for k, v in kwargs.items():
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
             setattr(self, k, v)
 
     def __getitem__(self, key):
@@ -447,15 +431,7 @@ class StrictDict(object):
         return (key for key in self.__slots__ if hasattr(self, key))
 
     def __len__(self):
-<<<<<<< HEAD
-<<<<<<< HEAD
-        return len(list(iteritems(self)))
-=======
         return len(list(self.items()))
->>>>>>> Run 2to3
-=======
-        return len(list(self.items()))
->>>>>>> bca4d8c6358c1d13918c80aeafd422bd70e79149
 
     def __eq__(self, other):
         return list(self.items()) == list(other.items())
