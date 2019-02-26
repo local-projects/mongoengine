@@ -1,31 +1,32 @@
 import warnings
 
+import six
+from six import iteritems, itervalues
+
+from mongoengine.base.common import _document_registry
+from mongoengine.base.fields import BaseField, ComplexBaseField, ObjectIdField
 from mongoengine.common import _import_class
 from mongoengine.errors import InvalidDocumentError
-from mongoengine.python_support import PY3
-from mongoengine.signals import _signals
 from mongoengine.queryset import (DO_NOTHING, DoesNotExist,
                                   MultipleObjectsReturned,
                                   QuerySetManager)
 
-from mongoengine.base.common import _document_registry, ALLOW_INHERITANCE
-from mongoengine.base.fields import BaseField, ComplexBaseField, ObjectIdField
 
 __all__ = ('DocumentMetaclass', 'TopLevelDocumentMetaclass')
 
 
 class DocumentMetaclass(type):
-    """Metaclass for all documents.
-    """
+    """Metaclass for all documents."""
 
-    def __new__(cls, name, bases, attrs):
-        flattened_bases = cls._get_bases(bases)
-        super_new = super(DocumentMetaclass, cls).__new__
+    # TODO lower complexity of this method
+    def __new__(mcs, name, bases, attrs):
+        flattened_bases = mcs._get_bases(bases)
+        super_new = super(DocumentMetaclass, mcs).__new__
 
         # If a base class just call super
         metaclass = attrs.get('my_metaclass')
         if metaclass and issubclass(metaclass, DocumentMetaclass):
-            return super_new(cls, name, bases, attrs)
+            return super_new(mcs, name, bases, attrs)
 
         attrs['_is_document'] = attrs.get('_is_document', False)
         attrs['_cached_reference_fields'] = []
@@ -46,7 +47,8 @@ class DocumentMetaclass(type):
             attrs['_meta'] = meta
             attrs['_meta']['abstract'] = False  # 789: EmbeddedDocument shouldn't inherit abstract
 
-        if attrs['_meta'].get('allow_inheritance', ALLOW_INHERITANCE):
+        # If allow_inheritance is True, add a "_cls" string field to the attrs
+        if attrs['_meta'].get('allow_inheritance'):
             StringField = _import_class('StringField')
             attrs['_cls'] = StringField()
 
@@ -61,7 +63,7 @@ class DocumentMetaclass(type):
             # Standard object mixin - merge in any Fields
             if not hasattr(base, '_meta'):
                 base_fields = {}
-                for attr_name, attr_value in base.__dict__.iteritems():
+                for attr_name, attr_value in iteritems(base.__dict__):
                     if not isinstance(attr_value, BaseField):
                         continue
                     attr_value.name = attr_name
@@ -73,7 +75,7 @@ class DocumentMetaclass(type):
 
         # Discover any document fields
         field_names = {}
-        for attr_name, attr_value in attrs.iteritems():
+        for attr_name, attr_value in iteritems(attrs):
             if not isinstance(attr_value, BaseField):
                 continue
             attr_value.name = attr_name
@@ -88,20 +90,21 @@ class DocumentMetaclass(type):
         # Ensure no duplicate db_fields
         duplicate_db_fields = [k for k, v in field_names.items() if v > 1]
         if duplicate_db_fields:
-            msg = ("Multiple db_fields defined for: %s " %
-                   ", ".join(duplicate_db_fields))
+            msg = ('Multiple db_fields defined for: %s ' %
+                   ', '.join(duplicate_db_fields))
             raise InvalidDocumentError(msg)
 
         # Set _fields and db_field maps
         attrs['_fields'] = doc_fields
-        attrs['_db_field_map'] = dict([(k, getattr(v, 'db_field', k))
-                                       for k, v in doc_fields.iteritems()])
-        attrs['_reverse_db_field_map'] = dict(
-            (v, k) for k, v in attrs['_db_field_map'].iteritems())
+        attrs['_db_field_map'] = {k: getattr(v, 'db_field', k)
+                                  for k, v in doc_fields.items()}
+        attrs['_reverse_db_field_map'] = {
+            v: k for k, v in attrs['_db_field_map'].items()
+        }
 
         attrs['_fields_ordered'] = tuple(i[1] for i in sorted(
                                          (v.creation_counter, v.name)
-                                         for v in doc_fields.itervalues()))
+                                         for v in itervalues(doc_fields)))
 
         #
         # Set document hierarchy
@@ -117,11 +120,10 @@ class DocumentMetaclass(type):
             if hasattr(base, '_meta'):
                 # Warn if allow_inheritance isn't set and prevent
                 # inheritance of classes where inheritance is set to False
-                allow_inheritance = base._meta.get('allow_inheritance',
-                                                   ALLOW_INHERITANCE)
-                if (allow_inheritance is not True and
-                        not base._meta.get('abstract')):
-                    raise ValueError('Document %s may not be subclassed' %
+                allow_inheritance = base._meta.get('allow_inheritance')
+                if not allow_inheritance and not base._meta.get('abstract'):
+                    raise ValueError('Document %s may not be subclassed. '
+                                     'To enable inheritance, use the "allow_inheritance" meta attribute.' %
                                      base.__name__)
 
         # Get superclasses from last base superclass
@@ -138,7 +140,7 @@ class DocumentMetaclass(type):
         attrs['_types'] = attrs['_subclasses']  # TODO depreciate _types
 
         # Create the new_class
-        new_class = super_new(cls, name, bases, attrs)
+        new_class = super_new(mcs, name, bases, attrs)
 
         # Set _subclasses
         for base in document_bases:
@@ -147,7 +149,7 @@ class DocumentMetaclass(type):
             base._types = base._subclasses  # TODO depreciate _types
 
         (Document, EmbeddedDocument, DictField,
-         CachedReferenceField) = cls._import_classes()
+         CachedReferenceField) = mcs._import_classes()
 
         if issubclass(new_class, Document):
             new_class._collection = None
@@ -162,8 +164,8 @@ class DocumentMetaclass(type):
         # module continues to use im_func and im_self, so the code below
         # copies __func__ into im_func and __self__ into im_self for
         # classmethod objects in Document derived classes.
-        if PY3:
-            for key, val in new_class.__dict__.items():
+        if six.PY3:
+            for val in new_class.__dict__.values():
                 if isinstance(val, classmethod):
                     f = val.__get__(new_class)
                     if hasattr(f, '__func__') and not hasattr(f, 'im_func'):
@@ -172,7 +174,7 @@ class DocumentMetaclass(type):
                         f.__dict__.update({'im_self': getattr(f, '__self__')})
 
         # Handle delete rules
-        for field in new_class._fields.itervalues():
+        for field in itervalues(new_class._fields):
             f = field
             if f.owner_document is None:
                 f.owner_document = new_class
@@ -180,11 +182,11 @@ class DocumentMetaclass(type):
             if isinstance(f, CachedReferenceField):
 
                 if issubclass(new_class, EmbeddedDocument):
-                    raise InvalidDocumentError(
-                        "CachedReferenceFields is not allowed in EmbeddedDocuments")
+                    raise InvalidDocumentError('CachedReferenceFields is not '
+                                               'allowed in EmbeddedDocuments')
                 if not f.document_type:
                     raise InvalidDocumentError(
-                        "Document is not available to sync")
+                        'Document is not available to sync')
 
                 if f.auto_sync:
                     f.start_listener()
@@ -196,8 +198,8 @@ class DocumentMetaclass(type):
                                       'reverse_delete_rule',
                                       DO_NOTHING)
                 if isinstance(f, DictField) and delete_rule != DO_NOTHING:
-                    msg = ("Reverse delete rules are not supported "
-                           "for %s (field: %s)" %
+                    msg = ('Reverse delete rules are not supported '
+                           'for %s (field: %s)' %
                            (field.__class__.__name__, field.name))
                     raise InvalidDocumentError(msg)
 
@@ -205,43 +207,40 @@ class DocumentMetaclass(type):
 
             if delete_rule != DO_NOTHING:
                 if issubclass(new_class, EmbeddedDocument):
-                    msg = ("Reverse delete rules are not supported for "
-                           "EmbeddedDocuments (field: %s)" % field.name)
+                    msg = ('Reverse delete rules are not supported for '
+                           'EmbeddedDocuments (field: %s)' % field.name)
                     raise InvalidDocumentError(msg)
                 f.document_type.register_delete_rule(new_class,
                                                      field.name, delete_rule)
 
             if (field.name and hasattr(Document, field.name) and
                     EmbeddedDocument not in new_class.mro()):
-                msg = ("%s is a document method and not a valid "
-                       "field name" % field.name)
+                msg = ('%s is a document method and not a valid '
+                       'field name' % field.name)
                 raise InvalidDocumentError(msg)
 
         return new_class
 
-    def add_to_class(self, name, value):
-        setattr(self, name, value)
-
     @classmethod
-    def _get_bases(cls, bases):
+    def _get_bases(mcs, bases):
         if isinstance(bases, BasesTuple):
             return bases
         seen = []
-        bases = cls.__get_bases(bases)
+        bases = mcs.__get_bases(bases)
         unique_bases = (b for b in bases if not (b in seen or seen.append(b)))
         return BasesTuple(unique_bases)
 
     @classmethod
-    def __get_bases(cls, bases):
+    def __get_bases(mcs, bases):
         for base in bases:
             if base is object:
                 continue
             yield base
-            for child_base in cls.__get_bases(base.__bases__):
+            for child_base in mcs.__get_bases(base.__bases__):
                 yield child_base
 
     @classmethod
-    def _import_classes(cls):
+    def _import_classes(mcs):
         Document = _import_class('Document')
         EmbeddedDocument = _import_class('EmbeddedDocument')
         DictField = _import_class('DictField')
@@ -254,9 +253,9 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
     collection in the database.
     """
 
-    def __new__(cls, name, bases, attrs):
-        flattened_bases = cls._get_bases(bases)
-        super_new = super(TopLevelDocumentMetaclass, cls).__new__
+    def __new__(mcs, name, bases, attrs):
+        flattened_bases = mcs._get_bases(bases)
+        super_new = super(TopLevelDocumentMetaclass, mcs).__new__
 
         # Set default _meta data if base class, otherwise get user defined meta
         if attrs.get('my_metaclass') == TopLevelDocumentMetaclass:
@@ -272,6 +271,11 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
                 'index_drop_dups': False,
                 'index_opts': None,
                 'delete_rules': None,
+
+                # allow_inheritance can be True, False, and None. True means
+                # "allow inheritance", False means "don't allow inheritance",
+                # None means "do whatever your parent does, or don't allow
+                # inheritance if you're a top-level class".
                 'allow_inheritance': None,
             }
             attrs['_is_base_cls'] = True
@@ -304,7 +308,7 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
         # If parent wasn't an abstract class
         if (parent_doc_cls and 'collection' in attrs.get('_meta', {}) and
                 not parent_doc_cls._meta.get('abstract', True)):
-            msg = "Trying to set a collection on a subclass (%s)" % name
+            msg = 'Trying to set a collection on a subclass (%s)' % name
             warnings.warn(msg, SyntaxWarning)
             del attrs['_meta']['collection']
 
@@ -312,9 +316,9 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
         if attrs.get('_is_base_cls') or attrs['_meta'].get('abstract'):
             if (parent_doc_cls and
                     not parent_doc_cls._meta.get('abstract', False)):
-                msg = "Abstract document cannot have non-abstract base"
+                msg = 'Abstract document cannot have non-abstract base'
                 raise ValueError(msg)
-            return super_new(cls, name, bases, attrs)
+            return super_new(mcs, name, bases, attrs)
 
         # Merge base class metas.
         # Uses a special MetaDict that handles various merging rules
@@ -335,12 +339,16 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
 
         meta.merge(attrs.get('_meta', {}))  # Top level meta
 
-        # Only simple classes (direct subclasses of Document)
-        # may set allow_inheritance to False
+        # Only simple classes (i.e. direct subclasses of Document) may set
+        # allow_inheritance to False. If the base Document allows inheritance,
+        # none of its subclasses can override allow_inheritance to False.
         simple_class = all([b._meta.get('abstract')
                             for b in flattened_bases if hasattr(b, '_meta')])
-        if (not simple_class and meta['allow_inheritance'] is False and
-                not meta['abstract']):
+        if (
+            not simple_class and
+            meta['allow_inheritance'] is False and
+            not meta['abstract']
+        ):
             raise ValueError('Only direct subclasses of Document may set '
                              '"allow_inheritance" to False')
 
@@ -351,7 +359,7 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
         attrs['_meta'] = meta
 
         # Call super and get the new class
-        new_class = super_new(cls, name, bases, attrs)
+        new_class = super_new(mcs, name, bases, attrs)
 
         meta = new_class._meta
 
@@ -368,7 +376,7 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
             new_class.objects = QuerySetManager()
 
         # Validate the fields and set primary key if needed
-        for field_name, field in new_class._fields.iteritems():
+        for field_name, field in iteritems(new_class._fields):
             if field.primary_key:
                 # Ensure only one primary key is set
                 current_pk = new_class._meta.get('id_field')
@@ -385,7 +393,7 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
                                            '_auto_id_field', False)
         if not new_class._meta.get('id_field'):
             # After 0.10, find not existing names, instead of overwriting
-            id_name, id_db_name = cls.get_auto_id_names(new_class)
+            id_name, id_db_name = mcs.get_auto_id_names(new_class)
             new_class._auto_id_field = True
             new_class._meta['id_field'] = id_name
             new_class._fields[id_name] = ObjectIdField(db_field=id_db_name)
@@ -407,23 +415,10 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
             exception = type(name, parents, {'__module__': module})
             setattr(new_class, name, exception)
 
-        for attr_name in dir(new_class):
-            try:
-                if attr_name != 'object':
-                    attr = getattr(new_class, attr_name)
-
-                    if hasattr(attr, '_mongoengine_signals'):
-                        for key in attr._mongoengine_signals.keys():
-                            signal = _signals.get(key)
-                            if signal:
-                                signal.connect(attr, sender=new_class)
-            except ConnectionError:
-                pass
-              
         return new_class
 
     @classmethod
-    def get_auto_id_names(cls, new_class):
+    def get_auto_id_names(mcs, new_class):
         id_name, id_db_name = ('id', '_id')
         if id_name not in new_class._fields and \
                 id_db_name not in (v.db_field for v in new_class._fields.values()):
@@ -444,7 +439,7 @@ class MetaDict(dict):
     _merge_options = ('indexes',)
 
     def merge(self, new_options):
-        for k, v in new_options.iteritems():
+        for k, v in iteritems(new_options):
             if k in self._merge_options:
                 self[k] = self.get(k, []) + v
             else:

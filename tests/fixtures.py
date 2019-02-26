@@ -26,7 +26,7 @@ class NewDocumentPickleTest(Document):
     new_field = StringField()
 
 
-class PickleDyanmicEmbedded(DynamicEmbeddedDocument):
+class PickleDynamicEmbedded(DynamicEmbeddedDocument):
     date = DateTimeField(default=datetime.now)
 
 
@@ -47,6 +47,7 @@ class PickleSignalsTest(Document):
     @classmethod
     def post_delete(self, sender, document, **kwargs):
         pickled = pickle.dumps(document)
+
 
 signals.post_save.connect(PickleSignalsTest.post_save, sender=PickleSignalsTest)
 signals.post_delete.connect(PickleSignalsTest.post_delete, sender=PickleSignalsTest)

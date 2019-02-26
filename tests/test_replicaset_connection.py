@@ -1,6 +1,3 @@
-import sys
-
-sys.path[0:0] = [""]
 import unittest
 
 from pymongo import ReadPreference
@@ -18,7 +15,7 @@ else:
 
 import mongoengine
 from mongoengine import *
-from mongoengine.connection import ConnectionError
+from mongoengine.connection import MongoEngineConnectionError
 
 
 class ConnectionTest(unittest.TestCase):
@@ -41,7 +38,7 @@ class ConnectionTest(unittest.TestCase):
             conn = connect(db='mongoenginetest',
                            host="mongodb://localhost/mongoenginetest?replicaSet=rs",
                            read_preference=READ_PREF)
-        except ConnectionError as e:
+        except MongoEngineConnectionError as e:
             return
 
         if not isinstance(conn, CONN_CLASS):
@@ -49,6 +46,7 @@ class ConnectionTest(unittest.TestCase):
             return
 
         self.assertEqual(conn.read_preference, READ_PREF)
+
 
 if __name__ == '__main__':
     unittest.main()

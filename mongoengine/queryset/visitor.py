@@ -3,7 +3,7 @@ import copy
 from mongoengine.errors import InvalidQueryError
 from mongoengine.queryset import transform
 
-__all__ = ('Q',)
+__all__ = ('Q', 'QNode')
 
 
 class QNodeVisitor(object):
@@ -69,9 +69,9 @@ class QueryCompilerVisitor(QNodeVisitor):
         self.document = document
 
     def visit_combination(self, combination):
-        operator = "$and"
+        operator = '$and'
         if combination.operation == combination.OR:
-            operator = "$or"
+            operator = '$or'
         return {operator: combination.children}
 
     def visit_query(self, query):
@@ -79,8 +79,7 @@ class QueryCompilerVisitor(QNodeVisitor):
 
 
 class QNode(object):
-    """Base class for nodes in query trees.
-    """
+    """Base class for nodes in query trees."""
 
     AND = 0
     OR = 1
@@ -94,7 +93,8 @@ class QNode(object):
         raise NotImplementedError
 
     def _combine(self, other, operation):
-        """Combine this node with another node into a QCombination object.
+        """Combine this node with another node into a QCombination
+        object.
         """
         if getattr(other, 'empty', True):
             return self
@@ -116,8 +116,8 @@ class QNode(object):
 
 
 class QCombination(QNode):
-    """Represents the combination of several conditions by a given logical
-    operator.
+    """Represents the combination of several conditions by a given
+    logical operator.
     """
 
     def __init__(self, operation, children):
@@ -130,6 +130,10 @@ class QCombination(QNode):
                 self.children += node.children
             else:
                 self.children.append(node)
+
+    def __repr__(self):
+        op = ' & ' if self.operation is self.AND else ' | '
+        return '(%s)' % op.join([repr(node) for node in self.children])
 
     def accept(self, visitor):
         for i in range(len(self.children)):
@@ -150,6 +154,9 @@ class Q(QNode):
 
     def __init__(self, **query):
         self.query = query
+
+    def __repr__(self):
+        return 'Q(**%s)' % repr(self.query)
 
     def accept(self, visitor):
         return visitor.visit_query(self)

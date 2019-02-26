@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import sys
-sys.path[0:0] = [""]
 import unittest
 
 from bson import SON
@@ -696,7 +694,7 @@ class DeltaTest(unittest.TestCase):
         organization.employees.append(person)
         updates, removals = organization._delta()
         self.assertEqual({}, removals)
-        self.assertTrue('employees' in updates)
+        self.assertIn('employees', updates)
 
     def test_delta_with_dbref_false(self):
         person, organization, employee = self.circular_reference_deltas_2(Document, Document, False)
@@ -711,7 +709,7 @@ class DeltaTest(unittest.TestCase):
         organization.employees.append(person)
         updates, removals = organization._delta()
         self.assertEqual({}, removals)
-        self.assertTrue('employees' in updates)
+        self.assertIn('employees', updates)
 
     def test_nested_nested_fields_mark_as_changed(self):
         class EmbeddedDoc(EmbeddedDocument):
@@ -864,6 +862,7 @@ class DeltaTest(unittest.TestCase):
         self.assertEqual('superadmin', delta[0]["users.007.roles.666"]["type"])
         self.assertEqual('oops', delta[0]["users.007.rolist"][0]["type"])
         self.assertEqual(uinfo.id, delta[0]["users.007.info"])
+
 
 if __name__ == '__main__':
     unittest.main()

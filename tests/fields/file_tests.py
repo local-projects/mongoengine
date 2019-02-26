@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
-import sys
-sys.path[0:0] = [""]
-
 import copy
 import os
 import unittest
 import tempfile
 
 import gridfs
+import six
 
 from nose.plugins.skip import SkipTest
 from mongoengine import *
 from mongoengine.connection import get_db
-from mongoengine.python_support import b, StringIO
+from mongoengine.python_support import StringIO
 
 try:
     from PIL import Image
@@ -20,15 +18,13 @@ try:
 except ImportError:
     HAS_PIL = False
 
+from tests.utils import MongoDBTestCase
+
 TEST_IMAGE_PATH = os.path.join(os.path.dirname(__file__), 'mongoengine.png')
 TEST_IMAGE2_PATH = os.path.join(os.path.dirname(__file__), 'mongodb_leaf.png')
 
 
-class FileTest(unittest.TestCase):
-
-    def setUp(self):
-        connect(db='mongoenginetest')
-        self.db = get_db()
+class FileTest(MongoDBTestCase):
 
     def tearDown(self):
         self.db.drop_collection('fs.files')
@@ -49,7 +45,7 @@ class FileTest(unittest.TestCase):
 
         PutFile.drop_collection()
 
-        text = b('Hello, World!')
+        text = six.b('Hello, World!')
         content_type = 'text/plain'
 
         putfile = PutFile()
@@ -57,8 +53,8 @@ class FileTest(unittest.TestCase):
         putfile.save()
 
         result = PutFile.objects.first()
-        self.assertTrue(putfile == result)
-        self.assertEqual("%s" % result.the_file, "<GridFSProxy: hello>")
+        self.assertEqual(putfile, result)
+        self.assertEqual("%s" % result.the_file, "<GridFSProxy: hello (%s)>" % result.the_file.grid_id)
         self.assertEqual(result.the_file.read(), text)
         self.assertEqual(result.the_file.content_type, content_type)
         result.the_file.delete()  # Remove file from GridFS
@@ -75,7 +71,7 @@ class FileTest(unittest.TestCase):
         putfile.save()
 
         result = PutFile.objects.first()
-        self.assertTrue(putfile == result)
+        self.assertEqual(putfile, result)
         self.assertEqual(result.the_file.read(), text)
         self.assertEqual(result.the_file.content_type, content_type)
         result.the_file.delete()
@@ -88,8 +84,8 @@ class FileTest(unittest.TestCase):
 
         StreamFile.drop_collection()
 
-        text = b('Hello, World!')
-        more_text = b('Foo Bar')
+        text = six.b('Hello, World!')
+        more_text = six.b('Foo Bar')
         content_type = 'text/plain'
 
         streamfile = StreamFile()
@@ -100,7 +96,7 @@ class FileTest(unittest.TestCase):
         streamfile.save()
 
         result = StreamFile.objects.first()
-        self.assertTrue(streamfile == result)
+        self.assertEqual(streamfile, result)
         self.assertEqual(result.the_file.read(), text + more_text)
         self.assertEqual(result.the_file.content_type, content_type)
         result.the_file.seek(0)
@@ -123,8 +119,8 @@ class FileTest(unittest.TestCase):
 
         StreamFile.drop_collection()
 
-        text = b('Hello, World!')
-        more_text = b('Foo Bar')
+        text = six.b('Hello, World!')
+        more_text = six.b('Foo Bar')
         content_type = 'text/plain'
 
         streamfile = StreamFile()
@@ -136,7 +132,7 @@ class FileTest(unittest.TestCase):
         streamfile.save()
 
         result = StreamFile.objects.first()
-        self.assertTrue(streamfile == result)
+        self.assertEqual(streamfile, result)
         self.assertEqual(result.the_file.read(), text + more_text)
         # self.assertEqual(result.the_file.content_type, content_type)
         result.the_file.seek(0)
@@ -155,8 +151,8 @@ class FileTest(unittest.TestCase):
         class SetFile(Document):
             the_file = FileField()
 
-        text = b('Hello, World!')
-        more_text = b('Foo Bar')
+        text = six.b('Hello, World!')
+        more_text = six.b('Foo Bar')
 
         SetFile.drop_collection()
 
@@ -165,7 +161,7 @@ class FileTest(unittest.TestCase):
         setfile.save()
 
         result = SetFile.objects.first()
-        self.assertTrue(setfile == result)
+        self.assertEqual(setfile, result)
         self.assertEqual(result.the_file.read(), text)
 
         # Try replacing file with new one
@@ -173,7 +169,7 @@ class FileTest(unittest.TestCase):
         result.save()
 
         result = SetFile.objects.first()
-        self.assertTrue(setfile == result)
+        self.assertEqual(setfile, result)
         self.assertEqual(result.the_file.read(), more_text)
         result.the_file.delete()
 
@@ -185,7 +181,7 @@ class FileTest(unittest.TestCase):
         GridDocument.drop_collection()
 
         with tempfile.TemporaryFile() as f:
-            f.write(b("Hello World!"))
+            f.write(six.b("Hello World!"))
             f.flush()
 
             # Test without default
@@ -202,7 +198,7 @@ class FileTest(unittest.TestCase):
             self.assertEqual(doc_b.the_file.grid_id, doc_c.the_file.grid_id)
 
             # Test with default
-            doc_d = GridDocument(the_file=b(''))
+            doc_d = GridDocument(the_file=six.b(''))
             doc_d.save()
 
             doc_e = GridDocument.objects.with_id(doc_d.id)
@@ -228,15 +224,15 @@ class FileTest(unittest.TestCase):
         # First instance
         test_file = TestFile()
         test_file.name = "Hello, World!"
-        test_file.the_file.put(b('Hello, World!'))
+        test_file.the_file.put(six.b('Hello, World!'))
         test_file.save()
 
         # Second instance
         test_file_dupe = TestFile()
         data = test_file_dupe.the_file.read()  # Should be None
 
-        self.assertTrue(test_file.name != test_file_dupe.name)
-        self.assertTrue(test_file.the_file.read() != data)
+        self.assertNotEqual(test_file.name, test_file_dupe.name)
+        self.assertNotEqual(test_file.the_file.read(), data)
 
         TestFile.drop_collection()
 
@@ -282,7 +278,7 @@ class FileTest(unittest.TestCase):
 
         test_file = TestFile()
         self.assertFalse(bool(test_file.the_file))
-        test_file.the_file.put(b('Hello, World!'), content_type='text/plain')
+        test_file.the_file.put(six.b('Hello, World!'), content_type='text/plain')
         test_file.save()
         self.assertTrue(bool(test_file.the_file))
 
@@ -295,68 +291,68 @@ class FileTest(unittest.TestCase):
             the_file = FileField()
 
         test_file = TestFile()
-        self.assertFalse(test_file.the_file in [{"test": 1}])
+        self.assertNotIn(test_file.the_file, [{"test": 1}])
 
-    def test_file_disk_space(self): 
-        """ Test disk space usage when we delete/replace a file """ 
+    def test_file_disk_space(self):
+        """ Test disk space usage when we delete/replace a file """
         class TestFile(Document):
             the_file = FileField()
-            
-        text = b('Hello, World!')
+
+        text = six.b('Hello, World!')
         content_type = 'text/plain'
 
         testfile = TestFile()
         testfile.the_file.put(text, content_type=content_type, filename="hello")
         testfile.save()
-        
-        # Now check fs.files and fs.chunks 
+
+        # Now check fs.files and fs.chunks
         db = TestFile._get_db()
-        
+
         files = db.fs.files.find()
         chunks = db.fs.chunks.find()
         self.assertEquals(len(list(files)), 1)
         self.assertEquals(len(list(chunks)), 1)
 
-        # Deleting the docoument should delete the files 
+        # Deleting the docoument should delete the files
         testfile.delete()
-        
+
         files = db.fs.files.find()
         chunks = db.fs.chunks.find()
         self.assertEquals(len(list(files)), 0)
         self.assertEquals(len(list(chunks)), 0)
-        
-        # Test case where we don't store a file in the first place 
+
+        # Test case where we don't store a file in the first place
         testfile = TestFile()
         testfile.save()
-        
+
         files = db.fs.files.find()
         chunks = db.fs.chunks.find()
         self.assertEquals(len(list(files)), 0)
         self.assertEquals(len(list(chunks)), 0)
-        
+
         testfile.delete()
-        
+
         files = db.fs.files.find()
         chunks = db.fs.chunks.find()
         self.assertEquals(len(list(files)), 0)
         self.assertEquals(len(list(chunks)), 0)
-        
-        # Test case where we overwrite the file 
+
+        # Test case where we overwrite the file
         testfile = TestFile()
         testfile.the_file.put(text, content_type=content_type, filename="hello")
         testfile.save()
-        
-        text = b('Bonjour, World!')
+
+        text = six.b('Bonjour, World!')
         testfile.the_file.replace(text, content_type=content_type, filename="hello")
         testfile.save()
-        
+
         files = db.fs.files.find()
         chunks = db.fs.chunks.find()
         self.assertEquals(len(list(files)), 1)
         self.assertEquals(len(list(chunks)), 1)
-        
+
         testfile.delete()
-        
+
         files = db.fs.files.find()
         chunks = db.fs.chunks.find()
         self.assertEquals(len(list(files)), 0)
@@ -372,7 +368,7 @@ class FileTest(unittest.TestCase):
         TestImage.drop_collection()
 
         with tempfile.TemporaryFile() as f:
-            f.write(b("Hello World!"))
+            f.write(six.b("Hello World!"))
             f.flush()
 
             t = TestImage()
@@ -496,7 +492,7 @@ class FileTest(unittest.TestCase):
         # First instance
         test_file = TestFile()
         test_file.name = "Hello, World!"
-        test_file.the_file.put(b('Hello, World!'),
+        test_file.the_file.put(six.b('Hello, World!'),
                           name="hello.txt")
         test_file.save()
 
@@ -504,16 +500,15 @@ class FileTest(unittest.TestCase):
         self.assertEqual(data.get('name'), 'hello.txt')
 
         test_file = TestFile.objects.first()
-        self.assertEqual(test_file.the_file.read(),
-                          b('Hello, World!'))
+        self.assertEqual(test_file.the_file.read(), six.b('Hello, World!'))
 
         test_file = TestFile.objects.first()
-        test_file.the_file = b('HELLO, WORLD!')
+        test_file.the_file = six.b('HELLO, WORLD!')
         test_file.save()
 
         test_file = TestFile.objects.first()
         self.assertEqual(test_file.the_file.read(),
-                          b('HELLO, WORLD!'))
+                         six.b('HELLO, WORLD!'))
 
     def test_copyable(self):
         class PutFile(Document):
@@ -521,7 +516,7 @@ class FileTest(unittest.TestCase):
 
         PutFile.drop_collection()
 
-        text = b('Hello, World!')
+        text = six.b('Hello, World!')
         content_type = 'text/plain'
 
         putfile = PutFile()
@@ -582,6 +577,7 @@ class FileTest(unittest.TestCase):
         self.assertEqual(marmot.photos[0].content_type, 'image/jpeg')
         self.assertEqual(marmot.photos[0].foo, 'bar')
         self.assertEqual(marmot.photos[0].get().length, 8313)
+
 
 if __name__ == '__main__':
     unittest.main()

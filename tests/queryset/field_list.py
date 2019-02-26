@@ -1,6 +1,3 @@
-import sys
-sys.path[0:0] = [""]
-
 import unittest
 
 from mongoengine import *
@@ -95,7 +92,7 @@ class OnlyExcludeAllTest(unittest.TestCase):
         exclude = ['d', 'e']
         only = ['b', 'c']
 
-        qs = MyDoc.objects.fields(**dict(((i, 1) for i in include)))
+        qs = MyDoc.objects.fields(**{i: 1 for i in include})
         self.assertEqual(qs._loaded_fields.as_dict(),
                          {'a': 1, 'b': 1, 'c': 1, 'd': 1, 'e': 1})
         qs = qs.only(*only)
@@ -103,14 +100,14 @@ class OnlyExcludeAllTest(unittest.TestCase):
         qs = qs.exclude(*exclude)
         self.assertEqual(qs._loaded_fields.as_dict(), {'b': 1, 'c': 1})
 
-        qs = MyDoc.objects.fields(**dict(((i, 1) for i in include)))
+        qs = MyDoc.objects.fields(**{i: 1 for i in include})
         qs = qs.exclude(*exclude)
         self.assertEqual(qs._loaded_fields.as_dict(), {'a': 1, 'b': 1, 'c': 1})
         qs = qs.only(*only)
         self.assertEqual(qs._loaded_fields.as_dict(), {'b': 1, 'c': 1})
 
         qs = MyDoc.objects.exclude(*exclude)
-        qs = qs.fields(**dict(((i, 1) for i in include)))
+        qs = qs.fields(**{i: 1 for i in include})
         self.assertEqual(qs._loaded_fields.as_dict(), {'a': 1, 'b': 1, 'c': 1})
         qs = qs.only(*only)
         self.assertEqual(qs._loaded_fields.as_dict(), {'b': 1, 'c': 1})
@@ -129,7 +126,7 @@ class OnlyExcludeAllTest(unittest.TestCase):
         exclude = ['d', 'e']
         only = ['b', 'c']
 
-        qs = MyDoc.objects.fields(**dict(((i, 1) for i in include)))
+        qs = MyDoc.objects.fields(**{i: 1 for i in include})
         qs = qs.exclude(*exclude)
         qs = qs.only(*only)
         qs = qs.fields(slice__b=5)
@@ -143,6 +140,16 @@ class OnlyExcludeAllTest(unittest.TestCase):
         qs = qs.exclude('c')
         self.assertEqual(qs._loaded_fields.as_dict(),
                          {'b': {'$slice': 5}})
+
+    def test_mix_slice_with_other_fields(self):
+        class MyDoc(Document):
+            a = ListField()
+            b = ListField()
+            c = ListField()
+
+        qs = MyDoc.objects.fields(a=1, b=0, slice__c=2)
+        self.assertEqual(qs._loaded_fields.as_dict(),
+                         {'c': {'$slice': 2}, 'a': 1})
 
     def test_only(self):
         """Ensure that QuerySet.only only returns the requested fields.
@@ -174,7 +181,7 @@ class OnlyExcludeAllTest(unittest.TestCase):
         employee.save()
 
         obj = self.Person.objects(id=employee.id).only('age').get()
-        self.assertTrue(isinstance(obj, Employee))
+        self.assertIsInstance(obj, Employee)
 
         # Check field names are looked up properly
         obj = Employee.objects(id=employee.id).only('salary').get()
@@ -190,14 +197,18 @@ class OnlyExcludeAllTest(unittest.TestCase):
             title = StringField()
             text = StringField()
 
+        class VariousData(EmbeddedDocument):
+            some = BooleanField()
+
         class BlogPost(Document):
             content = StringField()
             author = EmbeddedDocumentField(User)
             comments = ListField(EmbeddedDocumentField(Comment))
+            various = MapField(field=EmbeddedDocumentField(VariousData))
 
         BlogPost.drop_collection()
 
-        post = BlogPost(content='Had a good coffee today...')
+        post = BlogPost(content='Had a good coffee today...', various={'test_dynamic': {'some': True}})
         post.author = User(name='Test User')
         post.comments = [Comment(title='I aggree', text='Great post!'), Comment(title='Coffee', text='I hate coffee')]
         post.save()
@@ -207,6 +218,9 @@ class OnlyExcludeAllTest(unittest.TestCase):
         self.assertEqual(obj.author.email, None)
         self.assertEqual(obj.author.name, 'Test User')
         self.assertEqual(obj.comments, [])
+
+        obj = BlogPost.objects.only('various.test_dynamic.some').get()
+        self.assertEqual(obj.various["test_dynamic"].some, True)
 
         obj = BlogPost.objects.only('content', 'comments.title',).get()
         self.assertEqual(obj.content, 'Had a good coffee today...')
@@ -399,7 +413,6 @@ class OnlyExcludeAllTest(unittest.TestCase):
         numbers = Numbers.objects.fields(embedded__n={"$slice": [-5, 10]}).get()
         self.assertEqual(numbers.embedded.n, [-5, -4, -3, -2, -1])
 
-
     def test_exclude_from_subclasses_docs(self):
 
         class Base(Document):
@@ -421,6 +434,7 @@ class OnlyExcludeAllTest(unittest.TestCase):
         self.assertEqual(user.password, None)
 
         self.assertRaises(LookUpError, Base.objects.exclude, "made_up")
+
 
 if __name__ == '__main__':
     unittest.main()

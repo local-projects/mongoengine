@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-import sys
-sys.path[0:0] = [""]
 import unittest
 
 from mongoengine import *
 
 from mongoengine.queryset import NULLIFY, PULL
 from mongoengine.connection import get_db
+from tests.utils import requires_mongodb_gte_26
 
 __all__ = ("ClassMethodsTest", )
 
@@ -67,10 +66,10 @@ class ClassMethodsTest(unittest.TestCase):
         """
         collection_name = 'person'
         self.Person(name='Test').save()
-        self.assertTrue(collection_name in self.db.collection_names())
+        self.assertIn(collection_name, self.db.collection_names())
 
         self.Person.drop_collection()
-        self.assertFalse(collection_name in self.db.collection_names())
+        self.assertNotIn(collection_name, self.db.collection_names())
 
     def test_register_delete_rule(self):
         """Ensure that register delete rule adds a delete rule to the document
@@ -103,16 +102,16 @@ class ClassMethodsTest(unittest.TestCase):
         BlogPost.drop_collection()
 
         BlogPost.ensure_indexes()
-        self.assertEqual(BlogPost.compare_indexes(), { 'missing': [], 'extra': [] })
+        self.assertEqual(BlogPost.compare_indexes(), {'missing': [], 'extra': []})
 
         BlogPost.ensure_index(['author', 'description'])
-        self.assertEqual(BlogPost.compare_indexes(), { 'missing': [], 'extra': [[('author', 1), ('description', 1)]] })
+        self.assertEqual(BlogPost.compare_indexes(), {'missing': [], 'extra': [[('author', 1), ('description', 1)]]})
 
         BlogPost._get_collection().drop_index('author_1_description_1')
-        self.assertEqual(BlogPost.compare_indexes(), { 'missing': [], 'extra': [] })
+        self.assertEqual(BlogPost.compare_indexes(), {'missing': [], 'extra': []})
 
         BlogPost._get_collection().drop_index('author_1_title_1')
-        self.assertEqual(BlogPost.compare_indexes(), { 'missing': [[('author', 1), ('title', 1)]], 'extra': [] })
+        self.assertEqual(BlogPost.compare_indexes(), {'missing': [[('author', 1), ('title', 1)]], 'extra': []})
 
     def test_compare_indexes_inheritance(self):
         """ Ensure that the indexes are properly created and that
@@ -141,16 +140,16 @@ class ClassMethodsTest(unittest.TestCase):
 
         BlogPost.ensure_indexes()
         BlogPostWithTags.ensure_indexes()
-        self.assertEqual(BlogPost.compare_indexes(), { 'missing': [], 'extra': [] })
+        self.assertEqual(BlogPost.compare_indexes(), {'missing': [], 'extra': []})
 
         BlogPostWithTags.ensure_index(['author', 'tag_list'])
-        self.assertEqual(BlogPost.compare_indexes(), { 'missing': [], 'extra': [[('_cls', 1), ('author', 1), ('tag_list', 1)]] })
+        self.assertEqual(BlogPost.compare_indexes(), {'missing': [], 'extra': [[('_cls', 1), ('author', 1), ('tag_list', 1)]]})
 
         BlogPostWithTags._get_collection().drop_index('_cls_1_author_1_tag_list_1')
-        self.assertEqual(BlogPost.compare_indexes(), { 'missing': [], 'extra': [] })
+        self.assertEqual(BlogPost.compare_indexes(), {'missing': [], 'extra': []})
 
         BlogPostWithTags._get_collection().drop_index('_cls_1_author_1_tags_1')
-        self.assertEqual(BlogPost.compare_indexes(), { 'missing': [[('_cls', 1), ('author', 1), ('tags', 1)]], 'extra': [] })
+        self.assertEqual(BlogPost.compare_indexes(), {'missing': [[('_cls', 1), ('author', 1), ('tags', 1)]], 'extra': []})
 
     def test_compare_indexes_multiple_subclasses(self):
         """ Ensure that compare_indexes behaves correctly if called from a
@@ -185,9 +184,29 @@ class ClassMethodsTest(unittest.TestCase):
         BlogPostWithTags.ensure_indexes()
         BlogPostWithCustomField.ensure_indexes()
 
-        self.assertEqual(BlogPost.compare_indexes(), { 'missing': [], 'extra': [] })
-        self.assertEqual(BlogPostWithTags.compare_indexes(), { 'missing': [], 'extra': [] })
-        self.assertEqual(BlogPostWithCustomField.compare_indexes(), { 'missing': [], 'extra': [] })
+        self.assertEqual(BlogPost.compare_indexes(), {'missing': [], 'extra': []})
+        self.assertEqual(BlogPostWithTags.compare_indexes(), {'missing': [], 'extra': []})
+        self.assertEqual(BlogPostWithCustomField.compare_indexes(), {'missing': [], 'extra': []})
+
+    @requires_mongodb_gte_26
+    def test_compare_indexes_for_text_indexes(self):
+        """ Ensure that compare_indexes behaves correctly for text indexes """
+
+        class Doc(Document):
+            a = StringField()
+            b = StringField()
+            meta = {'indexes': [
+                {'fields': ['$a', "$b"],
+                 'default_language': 'english',
+                 'weights': {'a': 10, 'b': 2}
+                }
+            ]}
+
+        Doc.drop_collection()
+        Doc.ensure_indexes()
+        actual = Doc.compare_indexes()
+        expected = {'missing': [], 'extra': []}
+        self.assertEqual(actual, expected)
 
     def test_list_indexes_inheritance(self):
         """ ensure that all of the indexes are listed regardless of the super-
@@ -321,7 +340,7 @@ class ClassMethodsTest(unittest.TestCase):
             meta = {'collection': collection_name}
 
         Person(name="Test User").save()
-        self.assertTrue(collection_name in self.db.collection_names())
+        self.assertIn(collection_name, self.db.collection_names())
 
         user_obj = self.db[collection_name].find_one()
         self.assertEqual(user_obj['name'], "Test User")
@@ -330,7 +349,7 @@ class ClassMethodsTest(unittest.TestCase):
         self.assertEqual(user_obj.name, "Test User")
 
         Person.drop_collection()
-        self.assertFalse(collection_name in self.db.collection_names())
+        self.assertNotIn(collection_name, self.db.collection_names())
 
     def test_collection_name_and_primary(self):
         """Ensure that a collection with a specified name may be used.

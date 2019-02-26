@@ -1,11 +1,9 @@
-import sys
-sys.path[0:0] = [""]
-
 import unittest
 
+from bson.son import SON
+
 from mongoengine import *
-from mongoengine.queryset import Q
-from mongoengine.queryset import transform
+from mongoengine.queryset import Q, transform
 
 __all__ = ("TransformTest",)
 
@@ -32,29 +30,46 @@ class TransformTest(unittest.TestCase):
                          {'name': {'$exists': True}})
 
     def test_transform_update(self):
+        class LisDoc(Document):
+            foo = ListField(StringField())
+
         class DicDoc(Document):
             dictField = DictField()
 
         class Doc(Document):
             pass
 
+        LisDoc.drop_collection()
         DicDoc.drop_collection()
         Doc.drop_collection()
 
+        DicDoc().save()
         doc = Doc().save()
-        dic_doc = DicDoc().save()
 
         for k, v in (("set", "$set"), ("set_on_insert", "$setOnInsert"), ("push", "$push")):
             update = transform.update(DicDoc, **{"%s__dictField__test" % k: doc})
-            self.assertTrue(isinstance(update[v]["dictField.test"], dict))
+            self.assertIsInstance(update[v]["dictField.test"], dict)
 
         # Update special cases
         update = transform.update(DicDoc, unset__dictField__test=doc)
         self.assertEqual(update["$unset"]["dictField.test"], 1)
 
         update = transform.update(DicDoc, pull__dictField__test=doc)
-        self.assertTrue(isinstance(update["$pull"]["dictField"]["test"], dict))
+        self.assertIsInstance(update["$pull"]["dictField"]["test"], dict)
 
+        update = transform.update(LisDoc, pull__foo__in=['a'])
+        self.assertEqual(update, {'$pull': {'foo': {'$in': ['a']}}})
+
+    def test_transform_update_push(self):
+        """Ensure the differences in behvaior between 'push' and 'push_all'"""
+        class BlogPost(Document):
+            tags = ListField(StringField())
+
+        update = transform.update(BlogPost, push__tags=['mongo', 'db'])
+        self.assertEqual(update, {'$push': {'tags': ['mongo', 'db']}})
+
+        update = transform.update(BlogPost, push_all__tags=['mongo', 'db'])
+        self.assertEqual(update, {'$push': {'tags': {'$each': ['mongo', 'db']}}})
 
     def test_query_field_name(self):
         """Ensure that the correct field name is used when querying.
@@ -73,17 +88,15 @@ class TransformTest(unittest.TestCase):
         post = BlogPost(**data)
         post.save()
 
-        self.assertTrue('postTitle' in
-                        BlogPost.objects(title=data['title'])._query)
+        self.assertIn('postTitle', BlogPost.objects(title=data['title'])._query)
         self.assertFalse('title' in
                          BlogPost.objects(title=data['title'])._query)
         self.assertEqual(BlogPost.objects(title=data['title']).count(), 1)
 
-        self.assertTrue('_id' in BlogPost.objects(pk=post.id)._query)
+        self.assertIn('_id', BlogPost.objects(pk=post.id)._query)
         self.assertEqual(BlogPost.objects(pk=post.id).count(), 1)
 
-        self.assertTrue('postComments.commentContent' in
-                        BlogPost.objects(comments__content='test')._query)
+        self.assertIn('postComments.commentContent', BlogPost.objects(comments__content='test')._query)
         self.assertEqual(BlogPost.objects(comments__content='test').count(), 1)
 
         BlogPost.drop_collection()
@@ -101,8 +114,8 @@ class TransformTest(unittest.TestCase):
         post = BlogPost(**data)
         post.save()
 
-        self.assertTrue('_id' in BlogPost.objects(pk=data['title'])._query)
-        self.assertTrue('_id' in BlogPost.objects(title=data['title'])._query)
+        self.assertIn('_id', BlogPost.objects(pk=data['title'])._query)
+        self.assertIn('_id', BlogPost.objects(title=data['title'])._query)
         self.assertEqual(BlogPost.objects(pk=data['title']).count(), 1)
 
         BlogPost.drop_collection()
@@ -156,26 +169,33 @@ class TransformTest(unittest.TestCase):
         class Doc(Document):
             meta = {'allow_inheritance': False}
 
-        raw_query = Doc.objects(__raw__={'deleted': False,
-                                'scraped': 'yes',
-                                '$nor': [{'views.extracted': 'no'},
-                                         {'attachments.views.extracted':'no'}]
-                                })._query
+        raw_query = Doc.objects(__raw__={
+            'deleted': False,
+            'scraped': 'yes',
+            '$nor': [
+                {'views.extracted': 'no'},
+                {'attachments.views.extracted': 'no'}
+            ]
+        })._query
 
-        expected = {'deleted': False, 'scraped': 'yes',
-                    '$nor': [{'views.extracted': 'no'},
-                             {'attachments.views.extracted': 'no'}]}
-        self.assertEqual(expected, raw_query)
+        self.assertEqual(raw_query, {
+            'deleted': False,
+            'scraped': 'yes',
+            '$nor': [
+                {'views.extracted': 'no'},
+                {'attachments.views.extracted': 'no'}
+            ]
+        })
 
     def test_geojson_PointField(self):
         class Location(Document):
             loc = PointField()
 
         update = transform.update(Location, set__loc=[1, 2])
-        self.assertEqual(update, {'$set': {'loc': {"type": "Point", "coordinates": [1,2]}}})
+        self.assertEqual(update, {'$set': {'loc': {"type": "Point", "coordinates": [1, 2]}}})
 
-        update = transform.update(Location, set__loc={"type": "Point", "coordinates": [1,2]})
-        self.assertEqual(update, {'$set': {'loc': {"type": "Point", "coordinates": [1,2]}}})
+        update = transform.update(Location, set__loc={"type": "Point", "coordinates": [1, 2]})
+        self.assertEqual(update, {'$set': {'loc': {"type": "Point", "coordinates": [1, 2]}}})
 
     def test_geojson_LineStringField(self):
         class Location(Document):
@@ -224,6 +244,10 @@ class TransformTest(unittest.TestCase):
         self.assertEqual(1, Doc.objects(item__type__="axe").count())
         self.assertEqual(1, Doc.objects(item__name__="Heroic axe").count())
 
+        Doc.objects(id=doc.id).update(set__item__type__='sword')
+        self.assertEqual(1, Doc.objects(item__type__="sword").count())
+        self.assertEqual(0, Doc.objects(item__type__="axe").count())
+
     def test_understandable_error_raised(self):
         class Event(Document):
             title = StringField()
@@ -232,7 +256,33 @@ class TransformTest(unittest.TestCase):
         box = [(35.0, -125.0), (40.0, -100.0)]
         # I *meant* to execute location__within_box=box
         events = Event.objects(location__within=box)
-        self.assertRaises(InvalidQueryError, lambda: events.count())
+        with self.assertRaises(InvalidQueryError):
+            events.count()
+
+    def test_update_pull_for_list_fields(self):
+        """
+        Test added to check pull operation in update for
+        EmbeddedDocumentListField which is inside a EmbeddedDocumentField
+        """
+        class Word(EmbeddedDocument):
+            word = StringField()
+            index = IntField()
+
+        class SubDoc(EmbeddedDocument):
+            heading = ListField(StringField())
+            text = EmbeddedDocumentListField(Word)
+
+        class MainDoc(Document):
+            title = StringField()
+            content = EmbeddedDocumentField(SubDoc)
+
+        word = Word(word='abc', index=1)
+        update = transform.update(MainDoc, pull__content__text=word)
+        self.assertEqual(update, {'$pull': {'content.text': SON([('word', u'abc'), ('index', 1)])}})
+
+        update = transform.update(MainDoc, pull__content__heading='xyz')
+        self.assertEqual(update, {'$pull': {'content.heading': 'xyz'}})
+
 
 if __name__ == '__main__':
     unittest.main()

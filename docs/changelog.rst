@@ -2,9 +2,152 @@
 Changelog
 =========
 
-Changes in 0.10.7 - DEV
-=======================
-- Fixed not being able to specify `use_db_field=False` on `ListField(EmbeddedDocumentField)` instances
+Development
+===========
+- (Fill this out as you fix issues and develop your features).
+- Fix .only() working improperly after using .count() of the same instance of QuerySet
+- POTENTIAL BREAKING CHANGE: All result fields are now passed, including internal fields (_cls, _id) when using `QuerySet.as_pymongo` #1976
+- Document a BREAKING CHANGE introduced in 0.15.3 and not reported at that time (#1995)
+- Fix InvalidStringData error when using modify on a BinaryField #1127
+- DEPRECATION: `EmbeddedDocument.save` & `.reload` are marked as deprecated and will be removed in a next version of mongoengine #1552
+
+=================
+Changes in 0.16.3
+=================
+- Fix $push with $position operator not working with lists in embedded document #1965
+
+=================
+Changes in 0.16.2
+=================
+- Fix .save() that fails when called with write_concern=None (regression of 0.16.1) #1958
+
+=================
+Changes in 0.16.1
+=================
+- Fix `_cls` that is not set properly in Document constructor (regression) #1950
+- Fix bug in _delta method - Update of a ListField depends on an unrelated dynamic field update #1733
+- Remove deprecated `save()` method and used `insert_one()` #1899
+
+=================
+Changes in 0.16.0
+=================
+- Various improvements to the doc
+- Improvement to code quality
+- POTENTIAL BREAKING CHANGES:
+    - EmbeddedDocumentField will no longer accept references to Document classes in its constructor #1661
+    - Get rid of the `basecls` parameter from the DictField constructor (dead code) #1876
+    - default value of ComplexDateTime is now None (and no longer the current datetime) #1368
+- Fix unhashable TypeError when referencing a Document with a compound key in an EmbeddedDocument #1685
+- Fix bug where an EmbeddedDocument with the same id as its parent would not be tracked for changes #1768
+- Fix the fact that bulk `insert()` was not setting primary keys of inserted documents instances #1919
+- Fix bug when referencing the abstract class in a ReferenceField #1920
+- Allow modification to the document made in pre_save_post_validation to be taken into account #1202
+- Replaced MongoDB 2.4 tests in CI by MongoDB 3.2 #1903
+- Fix side effects of using queryset.`no_dereference` on other documents #1677
+- Fix TypeError when using lazy django translation objects as translated choices #1879
+- Improve 2-3 codebase compatibility #1889
+- Fix the support for changing the default value of ComplexDateTime #1368
+- Improves error message in case an EmbeddedDocumentListField receives an EmbeddedDocument instance
+    instead of a list #1877
+- Fix the Decimal operator inc/dec #1517 #1320
+- Ignore killcursors queries in `query_counter` context manager #1869
+- Fix the fact that `query_counter` was modifying the initial profiling_level in case it was != 0 #1870
+- Repaired the `no_sub_classes` context manager + fix the fact that it was swallowing exceptions #1865
+- Fix index creation error that was swallowed by hasattr under python2 #1688
+- QuerySet limit function behaviour: Passing 0 as parameter will return all the documents in the cursor #1611
+- bulk insert updates the ids of the input documents instances #1919
+- Fix an harmless bug related to GenericReferenceField where modifications in the generic-referenced document
+    were tracked in the parent #1934
+- Improve validator of BinaryField #273
+- Implemented lazy regex compiling in Field classes to improve 'import mongoengine' performance #1806
+- Updated GridFSProxy.__str__  so that it would always print both the filename and grid_id #710
+- Add __repr__ to Q and QCombination #1843
+- fix bug in BaseList.__iter__ operator (was occuring when modifying a BaseList while iterating over it) #1676
+- Added field `DateField`#513
+
+Changes in 0.15.3
+=================
+-  BREAKING CHANGES: `Queryset.update/update_one` methods now returns an UpdateResult when `full_result=True` is provided and no longer a dict (relates to #1491)
+-  Subfield resolve error in generic_emdedded_document query #1651 #1652
+-  use each modifier only with $position #1673 #1675
+-  Improve LazyReferenceField and GenericLazyReferenceField with nested fields #1704
+-  Fix validation error instance in GenericEmbeddedDocumentField #1067
+-  Update cached fields when fields argument is given #1712
+-  Add a db parameter to register_connection for compatibility with connect
+-  Use insert_one, insert_many in Document.insert #1491
+-  Use new update_one, update_many on document/queryset update #1491
+-  Use insert_one, insert_many in Document.insert #1491
+-  Fix reload(fields) affect changed fields #1371
+-  Fix Read-only access to database fails when trying to create indexes #1338
+
+Changes in 0.15.0
+=================
+- Add LazyReferenceField and GenericLazyReferenceField to address #1230
+
+Changes in 0.14.1
+=================
+- Removed SemiStrictDict and started using a regular dict for `BaseDocument._data` #1630
+- Added support for the `$position` param in the `$push` operator #1566
+- Fixed `DateTimeField` interpreting an empty string as today #1533
+- Added a missing `__ne__` method to the `GridFSProxy` class #1632
+- Fixed `BaseQuerySet._fields_to_db_fields` #1553
+
+Changes in 0.14.0
+=================
+- BREAKING CHANGE: Removed the `coerce_types` param from `QuerySet.as_pymongo` #1549
+- POTENTIAL BREAKING CHANGE: Made EmbeddedDocument not hashable by default #1528
+- Improved code quality #1531, #1540, #1541, #1547
+
+Changes in 0.13.0
+=================
+- POTENTIAL BREAKING CHANGE: Added Unicode support to the `EmailField`, see
+  docs/upgrade.rst for details.
+
+Changes in 0.12.0
+=================
+- POTENTIAL BREAKING CHANGE: Fixed limit/skip/hint/batch_size chaining #1476
+- POTENTIAL BREAKING CHANGE: Changed a public `QuerySet.clone_into` method to a private `QuerySet._clone_into` #1476
+- Fixed the way `Document.objects.create` works with duplicate IDs #1485
+- Fixed connecting to a replica set with PyMongo 2.x #1436
+- Fixed using sets in field choices #1481
+- Fixed deleting items from a `ListField` #1318
+- Fixed an obscure error message when filtering by `field__in=non_iterable`. #1237
+- Fixed behavior of a `dec` update operator #1450
+- Added a `rename` update operator #1454
+- Added validation for the `db_field` parameter #1448
+- Fixed the error message displayed when querying an `EmbeddedDocumentField` by an invalid value #1440
+- Fixed the error message displayed when validating unicode URLs #1486
+- Raise an error when trying to save an abstract document #1449
+
+Changes in 0.11.0
+=================
+- BREAKING CHANGE: Renamed `ConnectionError` to `MongoEngineConnectionError` since the former is a built-in exception name in Python v3.x. #1428
+- BREAKING CHANGE: Dropped Python 2.6 support. #1428
+- BREAKING CHANGE: `from mongoengine.base import ErrorClass` won't work anymore for any error from `mongoengine.errors` (e.g. `ValidationError`). Use `from mongoengine.errors import ErrorClass instead`. #1428
+- BREAKING CHANGE: Accessing a broken reference will raise a `DoesNotExist` error. In the past it used to return `None`. #1334
+- Fixed absent rounding for DecimalField when `force_string` is set. #1103
+
+Changes in 0.10.8
+=================
+- Added support for QuerySet.batch_size (#1426)
+- Fixed query set iteration within iteration #1427
+- Fixed an issue where specifying a MongoDB URI host would override more information than it should #1421
+- Added ability to filter the generic reference field by ObjectId and DBRef #1425
+- Fixed delete cascade for models with a custom primary key field #1247
+- Added ability to specify an authentication mechanism (e.g. X.509) #1333
+- Added support for falsey primary keys (e.g. doc.pk = 0) #1354
+- Fixed QuerySet#sum/average for fields w/ explicit db_field #1417
+- Fixed filtering by embedded_doc=None #1422
+- Added support for cursor.comment #1420
+- Fixed doc.get_<field>_display #1419
+- Fixed __repr__ method of the StrictDict #1424
+- Added a deprecation warning for Python 2.6
+
+Changes in 0.10.7
+=================
+- Dropped Python 3.2 support #1390
+- Fixed the bug where dynamic doc has index inside a dict field #1278
+- Fixed: ListField minus index assignment does not work #1128
 - Fixed cascade delete mixing among collections #1224
 - Add `signal_kwargs` argument to `Document.save`, `Document.delete` and `BaseQuerySet.insert` to be passed to signals calls #1206
 - Raise `OperationError` when trying to do a `drop_collection` on document with no collection set.
@@ -14,6 +157,14 @@ Changes in 0.10.7 - DEV
 - ListField now handles negative indicies correctly. #1270
 - Fixed AttributeError when initializing EmbeddedDocument with positional args. #681
 - Fixed no_cursor_timeout error with pymongo 3.0+ #1304
+- Replaced map-reduce based QuerySet.sum/average with aggregation-based implementations #1336
+- Fixed support for `__` to escape field names that match operators names in `update` #1351
+- Fixed BaseDocument#_mark_as_changed #1369
+- Added support for pickling QuerySet instances. #1397
+- Fixed connecting to a list of hosts #1389
+- Fixed a bug where accessing broken references wouldn't raise a DoesNotExist error #1334
+- Fixed not being able to specify use_db_field=False on ListField(EmbeddedDocumentField) instances #1218
+- Improvements to the dictionary fields docs #1383
 
 Changes in 0.10.6
 =================
@@ -49,6 +200,8 @@ Changes in 0.10.1
 - Document save's save_condition error raises `SaveConditionError` exception #1070
 - Fix Document.reload for DynamicDocument. #1050
 - StrictDict & SemiStrictDict are shadowed at init time. #1105
+- Fix ListField minus index assignment does not work. #1119
+- Remove code that marks field as changed when the field has default but not existed in database #1126
 - Remove test dependencies (nose and rednose) from install dependencies list. #1079
 - Recursively build query when using elemMatch operator. #1130
 - Fix instance back references for lists of embedded documents. #1131

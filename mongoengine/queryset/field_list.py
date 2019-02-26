@@ -63,11 +63,13 @@ class QueryFieldList(object):
             self._only_called = True
         return self
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(self.fields)
 
+    __nonzero__ = __bool__  # For Py2 support
+
     def as_dict(self):
-        field_list = dict((field, self.value) for field in self.fields)
+        field_list = {field: self.value for field in self.fields}
         if self.slice:
             field_list.update(self.slice)
         if self._id is not None:
