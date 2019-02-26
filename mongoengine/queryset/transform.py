@@ -8,6 +8,8 @@ from mongoengine.connection import get_connection
 from mongoengine.common import _import_class
 from mongoengine.errors import InvalidQueryError
 from mongoengine.python_support import IS_PYMONGO_3
+from past.builtins import basestring    # pip install future
+
 
 __all__ = ('query', 'update')
 

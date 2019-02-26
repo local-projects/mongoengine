@@ -28,6 +28,8 @@ from mongoengine.queryset.visitor import Q, QNode
 
 if IS_PYMONGO_3:
     from pymongo.collection import ReturnDocument
+    from past.builtins import basestring    # pip install future
+
 
 
 __all__ = ('BaseQuerySet', 'DO_NOTHING', 'NULLIFY', 'CASCADE', 'DENY', 'PULL')

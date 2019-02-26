@@ -3,10 +3,17 @@ import decimal
 import itertools
 import re
 import time
-import urllib2
+import sys
 import uuid
 import warnings
 from operator import itemgetter
+
+try:
+    # For Python 3.0 and later
+    from urllib.request import urlopen, Request
+except ImportError:
+    # Fall back to Python 2's urllib2
+    from urllib2 import urlopen, Request
 
 import six
 
@@ -25,14 +32,14 @@ try:
 except ImportError:
     Int64 = long
 
-from errors import ValidationError
-from python_support import (PY3, bin_type, txt_type,
-                            str_types, StringIO)
-from base import (BaseField, ComplexBaseField, ObjectIdField, GeoJsonBaseField,
-                  get_document, BaseDocument)
-from queryset import DO_NOTHING, QuerySet
-from document import Document, EmbeddedDocument
-from connection import get_db, DEFAULT_CONNECTION_NAME
+from .errors import ValidationError
+from .python_support import (PY3, bin_type, txt_type,
+                             str_types, StringIO)
+from .base import (BaseField, ComplexBaseField, ObjectIdField, GeoJsonBaseField,
+                   get_document, BaseDocument)
+from .queryset import DO_NOTHING, QuerySet
+from .document import Document, EmbeddedDocument
+from .connection import get_db, DEFAULT_CONNECTION_NAME
 
 try:
     from PIL import Image, ImageOps
@@ -138,27 +145,12 @@ class URLField(StringField):
         super(URLField, self).__init__(**kwargs)
 
     def validate(self, value):
-        # Check first if the scheme is valid
-        scheme = value.split('://')[0].lower()
-        if scheme not in self.schemes:
-            self.error('Invalid scheme {} in URL: {}'.format(scheme, value))
-            return
+        import requests
+        try:
+            requests.get(value)
+        except Exception as e:
+            self.error('This URL appears to be a broken link: %s' % e)
 
-        # Then check full URL
-        if not self.url_regex.match(value):
-            self.error('Invalid URL: {}'.format(value))
-            return
-
-        if self.verify_exists:
-            warnings.warn(
-                "The URLField verify_exists argument has intractable security "
-                "and performance issues. Accordingly, it has been deprecated.",
-                DeprecationWarning)
-            try:
-                request = urllib2.Request(value)
-                urllib2.urlopen(request)
-            except Exception as e:
-                self.error('This URL appears to be a broken link: %s' % e)
 
 
 class EmailField(StringField):
@@ -213,6 +205,12 @@ class IntField(BaseField):
         if value is None:
             return value
 
+        # A search for a non-decimal value should be ignored
+        try:
+            int(value)
+        except ValueError as exc:
+            return value
+
         return super(IntField, self).prepare_query_value(op, int(value))
 
 
@@ -248,6 +246,12 @@ class LongField(BaseField):
 
     def prepare_query_value(self, op, value):
         if value is None:
+            return value
+
+        # A search for a non-decimal value should be ignored
+        try:
+            long(value)
+        except ValueError as exc:
             return value
 
         return super(LongField, self).prepare_query_value(op, long(value))
@@ -286,6 +290,12 @@ class FloatField(BaseField):
 
     def prepare_query_value(self, op, value):
         if value is None:
+            return value
+
+        # A search for a non-decimal value should be ignored
+        try:
+            float(value)
+        except ValueError as exc:
             return value
 
         return super(FloatField, self).prepare_query_value(op, float(value))
@@ -579,7 +589,10 @@ class EmbeddedDocumentField(BaseField):
 
     def prepare_query_value(self, op, value):
         if not isinstance(value, self.document_type):
-            value = self.document_type._from_son(value)
+            if isinstance(value, dict):
+                doc_cls = get_document(value['_cls'])
+                value = doc_cls._from_son(value)
+                value = self.document_type._from_son(value)
         super(EmbeddedDocumentField, self).prepare_query_value(op, value)
         return self.to_mongo(value)
 
@@ -999,8 +1012,14 @@ class ReferenceField(BaseField):
     def prepare_query_value(self, op, value):
         if value is None:
             return None
-        super(ReferenceField, self).prepare_query_value(op, value)
-        return self.to_mongo(value)
+
+        # We can only query/search for valid objectId for referenceFields
+        if isinstance(value, (self.document_type, DBRef)):
+            super(ReferenceField, self).prepare_query_value(op, value)
+            return self.to_mongo(value)
+        else:
+            return value
+
 
     def validate(self, value):
 

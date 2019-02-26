@@ -11,6 +11,7 @@ from mongoengine.base.common import ALLOW_INHERITANCE
 from mongoengine.base.datastructures import (
     BaseDict, BaseList, EmbeddedDocumentList
 )
+from past.builtins import basestring    # pip install future
 
 __all__ = ("BaseField", "ComplexBaseField",
            "ObjectIdField", "GeoJsonBaseField")
@@ -187,11 +188,11 @@ class BaseField(object):
         if isinstance(value, (Document, EmbeddedDocument)):
             if not any(isinstance(value, c) for c in choice_list):
                 self.error(
-                    'Value must be instance of %s' % unicode(choice_list)
+                    'Value must be instance of %s' % str(choice_list)
                 )
         # Choices which are types other than Documents
         elif value not in choice_list:
-            self.error('Value must be one of %s' % unicode(choice_list))
+            self.error('Value must be one of %s' % str(choice_list))
 
 
     def _validate(self, value, **kwargs):
@@ -447,18 +448,21 @@ class ObjectIdField(BaseField):
     def to_mongo(self, value, **kwargs):
         if not isinstance(value, ObjectId):
             try:
-                return ObjectId(unicode(value))
+                return ObjectId(value)
             except Exception as e:
                 # e.message attribute has been deprecated since Python 2.6
-                self.error(unicode(e))
+                self.error(str(e))
         return value
 
     def prepare_query_value(self, op, value):
         return self.to_mongo(value)
 
     def validate(self, value):
+        if isinstance(value, ObjectId):
+            return True
+
         try:
-            ObjectId(unicode(value))
+            ObjectId(str(value))
         except Exception:
             self.error('Invalid Object ID')
 
